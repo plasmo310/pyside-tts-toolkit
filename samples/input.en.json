@@ -1,0 +1,17 @@
+[
+  {
+    "id": "line-001",
+    "text": "Hello. It is a beautiful day today.",
+    "language": "en"
+  },
+  {
+    "id": "line-002",
+    "text": "We are testing batch synthesis.",
+    "language": "en"
+  },
+  {
+    "id": "line-003",
+    "text": "The model stays loaded, so later lines generate faster.",
+    "language": "en"
+  }
+]

@@ -1,0 +1,36 @@
+[project]
+name = "tts-engine-chatterbox"
+version = "0.1.0"
+description = "Chatterbox Multilingual V3 を runner として動かすための隔離環境"
+requires-python = ">=3.12,<3.13"
+# PyPI の chatterbox-tts 0.1.7 は多言語 V2 チェックポイント
+# (t3_mtl23ls_v2.safetensors) しか読み込まず、from_pretrained に t3_model 引数が無い。
+# V3（話者類似性の向上・幻覚の低減）は GitHub の master にのみ入っているため、
+# コミットを固定して git から入れる。
+dependencies = [
+    "chatterbox-tts @ git+https://github.com/resemble-ai/chatterbox.git@5de7a54aa4e5e2baadb0182dde554908b48b85c2",
+    "soundfile>=0.12",
+]
+
+# --- torch を上書きする理由 -------------------------------------------------
+# chatterbox-tts 0.1.7 は torch==2.6.0 / torchaudio==2.6.0 をピンしている。
+# 2.6.0 のビルドは cu124/cu126 までで sm_120 カーネルを含まないため、
+# Blackwell 世代（RTX 50 系）では実行時に次のエラーになる:
+#     CUDA error: no kernel image is available for execution on the device
+# sm_120 を含む最初の系列は 2.7.0+cu128 なので、そこまで引き上げる。
+# transformers==5.2.0 / diffusers==0.29.0 / safetensors==0.5.3 のピンは
+# モデルコードが依存しているため触らない。
+[tool.uv]
+override-dependencies = [
+    "torch==2.7.1",
+    "torchaudio==2.7.1",
+]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+torchaudio = [{ index = "pytorch-cu128" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# 仮想環境。リポジトリ直下の .venvs/ にまとめている（mise.toml 参照）。
+.venvs/
+.venv/
+
+# ベンダーリポジトリ（セットアップ手順で clone し直せる）
+python/engines/irodori/vendor/
+
+# 生成物・声素材（サイズが大きく再現不能なため追跡しない）
+outputs/
+voices/
+samples/ref/*
+!samples/ref/.gitkeep
+
+# モデルキャッシュ
+.cache/
+
+# references
+references/

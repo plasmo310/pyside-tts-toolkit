@@ -1,0 +1,25 @@
+[project]
+name = "tts-engine-qwen"
+version = "0.1.0"
+description = "Qwen3-TTS を runner として動かすための隔離環境"
+requires-python = ">=3.12,<3.13"
+# qwen-tts は transformers==4.57.3 をピンする。Chatterbox の 5.2.0 や
+# Irodori の >=5.12.1 とは共存できないため、この venv を分けている。
+# qwen-tts 自身は torch を依存に持たない（torchaudio のみ）ので明示的に入れる。
+dependencies = [
+    "qwen-tts>=0.1.1",
+    "torch",
+    "torchaudio",
+    "soundfile>=0.12",
+]
+
+# PyPI の torch は Windows では CPU 版になる。Blackwell (sm_120) を含む
+# cu128 ビルドを使うため索引を明示する。
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+torchaudio = [{ index = "pytorch-cu128" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

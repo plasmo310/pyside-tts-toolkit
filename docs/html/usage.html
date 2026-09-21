@@ -1,0 +1,886 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>tts コマンド早見表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --ground:      #F3F5F9;
+    --surface:     #FFFFFF;
+    --surface-2:   #E9EDF4;
+    --border:      #D8DEE9;
+    --border-soft: #E6EAF2;
+    --ink:         #151922;
+    --ink-2:       #3D4658;
+    --muted:       #626D82;
+    --accent:      #2B4FD6;
+
+    --qwen:        #2B5FD9;
+    --chat:        #0C7F5E;
+    --iro:         #BC4526;
+
+    --ok:          #0C7F5E;
+    --no:          #A8394A;
+
+    --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", Consolas, ui-monospace, monospace;
+
+    --wrap: 780px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0E1116;
+      --surface:     #161A22;
+      --surface-2:   #1E242E;
+      --border:      #2A313D;
+      --border-soft: #222834;
+      --ink:         #E3E8F1;
+      --ink-2:       #B9C2D2;
+      --muted:       #8B96A8;
+      --accent:      #7B9BFF;
+      --qwen:        #7CA0FF;
+      --chat:        #3FC79D;
+      --iro:         #FF8A63;
+      --ok:          #3FC79D;
+      --no:          #FF7E8E;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0E1116;
+    --surface:     #161A22;
+    --surface-2:   #1E242E;
+    --border:      #2A313D;
+    --border-soft: #222834;
+    --ink:         #E3E8F1;
+    --ink-2:       #B9C2D2;
+    --muted:       #8B96A8;
+    --accent:      #7B9BFF;
+    --qwen:        #7CA0FF;
+    --chat:        #3FC79D;
+    --iro:         #FF8A63;
+    --ok:          #3FC79D;
+    --no:          #FF7E8E;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.8;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--wrap);
+    margin: 0 auto;
+    padding-inline: 20px;
+  }
+
+  /* ----------------------------------------------------------- nav */
+
+  nav {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 20;
+    background: color-mix(in srgb, var(--ground) 90%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  nav .wrap {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-block: 9px;
+  }
+  nav .wrap::-webkit-scrollbar { display: none; }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 5px 9px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  nav a:hover, nav a:focus-visible { color: var(--ink); background: var(--surface-2); }
+
+  /* ---------------------------------------------------------- hero */
+
+  header { padding-block: 44px 8px; }
+  h1 {
+    font-family: var(--font-mono);
+    font-size: clamp(26px, 5.5vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+  header p {
+    font-size: 15.5px;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 40em;
+  }
+
+  /* -------------------------------------------------------- blocks */
+
+  section { padding-block: 34px; border-top: 1px solid var(--border-soft); }
+  section:first-of-type { border-top: none; }
+
+  h2 {
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  h2 .tag {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 7px;
+    white-space: nowrap;
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 26px 0 8px;
+    color: var(--ink-2);
+  }
+  p { margin: 0 0 14px; max-width: 42em; }
+  section > .wrap > p:first-of-type { color: var(--ink-2); }
+  a { color: var(--accent); }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.87em;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ----------------------------------------------------------- cmd */
+
+  .cmd {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin: 0 0 12px;
+  }
+  .cmd .label {
+    font-size: 12.5px;
+    color: var(--muted);
+    padding: 9px 14px 0;
+  }
+  .cmd pre {
+    margin: 0;
+    padding: 11px 52px 14px 14px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.9;
+    color: var(--ink);
+  }
+  .cmd .p  { color: var(--muted); user-select: none; }
+  .cmd .cm { color: var(--muted); }
+  .cmd .s  { color: var(--chat); }
+  .cmd .f  { color: var(--accent); }
+  .cmd .out { color: var(--muted); }
+
+  .copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 3px 9px;
+    cursor: pointer;
+    line-height: 1.7;
+  }
+  .copy:hover, .copy:focus-visible { color: var(--ink); border-color: var(--muted); }
+  .copy.done { color: var(--ok); border-color: var(--ok); }
+
+  /* --------------------------------------------------------- steps */
+
+  .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+  .steps > li {
+    counter-increment: s;
+    position: relative;
+    padding-left: 36px;
+    margin-bottom: 22px;
+  }
+  .steps > li::before {
+    content: counter(s);
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--surface);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+  .steps > li > .t { font-weight: 700; margin-bottom: 6px; }
+  .steps > li > .t small { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+
+  /* --------------------------------------------------------- table */
+
+  .scroll { overflow-x: auto; margin: 0 0 14px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 480px;
+    font-size: 13.5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 13px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+    line-height: 1.7;
+  }
+  thead th {
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+  .ctr { text-align: center; }
+  .yes { color: var(--ok); font-weight: 700; }
+  .no  { color: var(--no); font-weight: 700; }
+  .dash { color: var(--muted); }
+  .q .n { color: var(--qwen); }
+  .c .n { color: var(--chat); }
+  .i .n { color: var(--iro); }
+  .n { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+
+  /* ---------------------------------------------------------- note */
+
+  .note {
+    border-left: 3px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    padding: 12px 16px;
+    border-radius: 0 3px 3px 0;
+    margin: 0 0 14px;
+    font-size: 13.5px;
+    line-height: 1.75;
+  }
+  .note.warn {
+    border-left-color: var(--no);
+    background: color-mix(in srgb, var(--no) 10%, transparent);
+  }
+  .note b { display: block; margin-bottom: 2px; }
+  .note p { margin: 0; max-width: none; }
+
+  ul.plain { padding-left: 20px; margin: 0 0 14px; max-width: 42em; }
+  ul.plain li { margin-bottom: 6px; }
+
+  /* --------------------------------------------------------- files */
+
+  .files {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.95;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0 0 14px;
+  }
+  .files .cm { color: var(--muted); }
+
+  footer {
+    border-top: 1px solid var(--border-soft);
+    padding-block: 26px 52px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 640px) {
+    header { padding-block: 32px 8px; }
+    section { padding-block: 28px; }
+    .cmd pre { padding-right: 14px; padding-top: 34px; }
+    .copy { top: 6px; right: 6px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<nav>
+  <div class="wrap">
+    <a href="#start">準備</a>
+    <a href="#one">1本作る</a>
+    <a href="#voice">声を作る</a>
+    <a href="#clone">クローン</a>
+    <a href="#script">台本</a>
+    <a href="#batch">バッチ</a>
+    <a href="#which">どれを使う</a>
+    <a href="#trouble">困ったとき</a>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <h1>tts コマンド早見表</h1>
+    <p>
+      セットアップが済んだ状態から、やりたいことごとにコマンドを引くためのページ。
+      導入手順は <code>docs/setup/</code> を参照。
+    </p>
+  </div>
+</header>
+
+<!-- ============================================================ 準備 -->
+<section id="start">
+  <div class="wrap">
+    <h2>準備 <span class="tag">最初に一度</span></h2>
+    <p>コマンドはすべて<b>リポジトリのルート</b>で実行する。パスが長いので alias を張る。</p>
+
+    <div class="cmd">
+      <div class="label">PowerShell（このシェルの間だけ有効）</div>
+<pre><span class="p">&gt; </span>cd python-tts-sample
+<span class="p">&gt; </span><span class="f">function</span> tts { &amp; <span class="s">"$PWD\.venvs\common\Scripts\python.exe"</span> -m tts_sample @args }</pre>
+    </div>
+
+    <p>環境が正しいか確認する。<code>CUDA OK</code> が 3 つ出れば準備完了。</p>
+
+    <div class="cmd">
+      <div class="label">動作確認</div>
+<pre><span class="p">&gt; </span>tts doctor
+<span class="p">&gt; </span>tts engines   <span class="cm"># エンジン一覧と対応機能</span></pre>
+    </div>
+
+    <div class="files">outputs/    <span class="cm">生成した wav の置き場</span>
+voices/     <span class="cm">マスター音声の置き場</span>
+samples/    <span class="cm">台本とバッチ入力の例</span></div>
+  </div>
+</section>
+
+<!-- ========================================================= 1本作る -->
+<section id="one">
+  <div class="wrap">
+    <h2>1 本しゃべらせる <span class="tag">tts synth</span></h2>
+    <p>いちばん基本の形。まずは軽い <code>chatterbox</code> で試すのが早い。</p>
+
+    <div class="cmd">
+      <div class="label">テキストを直接渡す</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> chatterbox <span class="f">--text</span> <span class="s">"こんにちは。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\hello.wav
+
+<span class="out">[chatterbox] D:\...\outputs\hello.wav
+  24000 Hz / 2.52 秒 / 生成 4.22 秒</span></pre>
+    </div>
+
+    <div class="cmd">
+      <div class="label">長い台本はファイルから（UTF-8）</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text-file</span> script.txt <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav</pre>
+    </div>
+
+    <div class="cmd">
+      <div class="label">同じ結果を再現したいときはシードを固定</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--text</span> <span class="s">"こんにちは。"</span> <span class="f">--lang</span> ja <span class="f">--seed</span> 42 <span class="f">--out</span> outputs\b.wav</pre>
+    </div>
+
+    <div class="cmd">
+      <div class="label">話速を変える（irodori のみ・1.0 が等速）</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text</span> <span class="s">"ゆっくり話します。"</span> <span class="f">--lang</span> ja <span class="f">--speed</span> 0.8 <span class="f">--out</span> outputs\slow.wav</pre>
+    </div>
+
+    <h3>オプション一覧</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>オプション</th><th>説明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">--engine</td><td><b>必須。</b> qwen / chatterbox / irodori</td></tr>
+          <tr><td class="mono">--text</td><td><b>必須</b>（または <code>--text-file</code>）。合成するテキスト</td></tr>
+          <tr><td class="mono">--text-file</td><td>テキストをファイルから読む（UTF-8）</td></tr>
+          <tr><td class="mono">--out</td><td><b>必須。</b> 出力 wav のパス</td></tr>
+          <tr><td class="mono">--lang</td><td>ja / en。省略するとエンジンの既定</td></tr>
+          <tr><td class="mono">--ref</td><td>参照音声 wav（声のクローン）</td></tr>
+          <tr><td class="mono">--ref-text</td><td>参照音声の書き起こし。<b>qwen のみ使う</b></td></tr>
+          <tr><td class="mono">--voice-design</td><td>文章で声を設計。<b>qwen / irodori のみ</b></td></tr>
+          <tr><td class="mono">--seed</td><td>乱数シード</td></tr>
+          <tr><td class="mono">--speed</td><td>話速。<b>irodori のみ</b></td></tr>
+          <tr><td class="mono">--verbose</td><td>エンジンのログをそのまま表示する</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>対応していないオプションはエラーになる</b>
+      <p>
+        黙って無視されることはない。判定はモデルを読み込む前に行われるので、
+        待たされずにすぐ失敗する。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================= 声を作る -->
+<section id="voice">
+  <div class="wrap">
+    <h2>オリジナルの声を作る <span class="tag">--voice-design</span></h2>
+    <p>
+      文章で声の特徴を書くと、実在の人物に依存しない声を作れる。
+      ただし<b>生成のたびに少しずつ変わる</b>ので、気に入った声は
+      マスター音声に固定して、以降はそれをクローンして使う。
+    </p>
+
+    <ol class="steps">
+      <li>
+        <div class="t">声を試す <small>— 指示文を変えて何本か作って聴き比べる</small></div>
+        <div class="cmd">
+          <div class="label">seed は固定しておくと、違いが指示文によるものだと分かる</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--seed</span> 42 <span class="f">--lang</span> ja <span class="f">--out</span> voices\try01.wav <span class="s">`</span>
+      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="s">`</span>
+      <span class="f">--text</span> <span class="s">"この声でどうでしょうか。"</span></pre>
+        </div>
+      </li>
+
+      <li>
+        <div class="t">マスター音声にする <small>— 長めの台詞で 1 本だけ作って保存</small></div>
+        <div class="cmd">
+          <div class="label">irodori は 30 秒以上あると安定する（上限 120 秒）</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--seed</span> 42 <span class="f">--lang</span> ja <span class="f">--out</span> voices\reimu_master.wav <span class="s">`</span>
+      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="s">`</span>
+      <span class="f">--text-file</span> voices\master_script.txt</pre>
+        </div>
+      </li>
+
+      <li>
+        <div class="t">以降はクローンして使う <small>— 声がぶれなくなる</small></div>
+        <div class="cmd">
+          <div class="label">--voice-design ではなく --ref を使う</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--ref</span> voices\reimu_master.wav <span class="s">`</span>
+      <span class="f">--text</span> <span class="s">"マスター音声から再現した声です。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav</pre>
+        </div>
+      </li>
+
+      <li>
+        <div class="t">英語版も同じ声で <small>— マスター音声を qwen に渡す</small></div>
+        <div class="cmd">
+          <div class="label">irodori は英語を出せないので、ここだけエンジンを替える</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--lang</span> en <span class="f">--ref</span> voices\reimu_master.wav <span class="s">`</span>
+      <span class="f">--ref-text</span> <span class="s">"こんにちは。私はこのキャラクターの声です。"</span> <span class="s">`</span>
+      <span class="f">--text</span> <span class="s">"This is the same character speaking English."</span> <span class="f">--out</span> outputs\en.wav</pre>
+        </div>
+      </li>
+    </ol>
+
+    <h3>指示文の書き方</h3>
+    <p>次の軸で書く。全部詰め込むより <b>3〜4 要素に絞る</b>ほうが安定する。</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th style="min-width:120px">軸</th><th>例</th></tr></thead>
+        <tbody>
+          <tr><td>性別・年齢</td><td>若い女性、少年、中年の男性、老人</td></tr>
+          <tr><td>声の高さ・質</td><td>低め、高め、掠れた、澄んだ、ハスキー</td></tr>
+          <tr><td>話し方</td><td>丁寧、ぶっきらぼう、早口、ゆっくり、淡々と</td></tr>
+          <tr><td>感情・態度</td><td>楽しそうに、呆れたように、落ち着いて</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cmd">
+      <div class="label">実際に使える指示文の例</div>
+<pre>落ち着いた低めの女性の声。丁寧で穏やかな話し方。
+元気で明るい少女の声。やや早口で、楽しそうに話す。
+少し掠れた低い男性の声。ぶっきらぼうだが芯がある。</pre>
+    </div>
+
+    <div class="note warn">
+      <b>エンジンごとの制約</b>
+      <p>
+        <b>chatterbox</b> は Voice Design に非対応（クローンのみ）。
+        <b>qwen</b> は <code>--voice-design</code> と <code>--ref</code> を併用できない。
+        <b>irodori</b> は併用でき、そのときは<b>声質＝参照音声・話し方＝指示文</b>になる。
+        日本語の声を作るなら irodori が確実。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== クローン -->
+<section id="clone">
+  <div class="wrap">
+    <h2>声をクローンする <span class="tag">--ref</span></h2>
+    <p>参照音声を渡すだけ。3 エンジンとも対応している。</p>
+
+    <div class="cmd">
+      <div class="label">chatterbox / irodori — 書き起こしは不要</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> chatterbox <span class="f">--ref</span> voices\alice.wav <span class="s">`</span>
+      <span class="f">--text</span> <span class="s">"クローンした声で話しています。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav</pre>
+    </div>
+
+    <div class="cmd">
+      <div class="label">qwen — 書き起こしを渡すと品質が上がる</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--ref</span> voices\alice.wav <span class="s">`</span>
+      <span class="f">--ref-text</span> <span class="s">"参照音声で実際に話している内容"</span> <span class="s">`</span>
+      <span class="f">--text</span> <span class="s">"おはようございます。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\b.wav</pre>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>エンジン</th><th>参照音声の長さ</th><th>書き起こし</th></tr></thead>
+        <tbody>
+          <tr class="q"><td><span class="n">qwen</span></td><td>3 秒〜</td><td>あると品質が上がる</td></tr>
+          <tr class="c"><td><span class="n">chatterbox</span></td><td>10 秒前後</td><td class="dash">不要</td></tr>
+          <tr class="i"><td><span class="n">irodori</span></td><td>30 秒以上を推奨（上限 120 秒）</td><td class="dash">不要</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>いずれもノイズ・BGM のないきれいな音声を使う。</p>
+  </div>
+</section>
+
+<!-- ========================================================== 台本 -->
+<section id="script">
+  <div class="wrap">
+    <h2>台本からまとめて作る <span class="tag">tts script</span></h2>
+    <p>
+      複数のキャラクターが会話する台本から、台詞ごとの wav を一度に作る。
+      <b>声の定義と台詞を別ファイルに分ける</b>ので、台本には「誰が」「何を」しか書かない。
+    </p>
+
+    <div class="cmd">
+      <div class="label">① cast.toml — キャラクターの声。最初に一度だけ書く</div>
+<pre><span class="cm"># 日本語名はクォートが必要（[voices.霊夢] は構文エラー）</span>
+[voices.<span class="s">"霊夢"</span>]
+engine = <span class="s">"irodori"</span>
+voice_design = <span class="s">"落ち着いた少女の声。淡々と話す。"</span>
+language = <span class="s">"ja"</span>
+seed = 42
+
+[voices.<span class="s">"魔理沙"</span>]
+engine = <span class="s">"irodori"</span>
+reference_audio = <span class="s">"../../voices/marisa.wav"</span>   <span class="cm"># この toml からの相対</span>
+language = <span class="s">"ja"</span>
+
+[voices.<span class="s">"ナレーター"</span>]
+engine = <span class="s">"qwen"</span>
+language = <span class="s">"ja"</span></pre>
+    </div>
+
+    <div class="cmd">
+      <div class="label">② ep01.ja.txt — 台詞。毎回書くのはこちらだけ</div>
+<pre><span class="cm"># ■ オープニング</span>
+
+ナレーター: ある晴れた日のこと。
+
+霊夢: 今日はいい天気ね。
+魔理沙: そうだな、絶好の弾幕日和だぜ！
+
+霊夢<span class="f">[speed=0.9]</span>: ……また変なこと言ってる。
+魔理沙<span class="f">[id=punchline]</span>: やった、ごちそうさま！
+
+<span class="cm"># インデントで長い台詞を折り返せる</span>
+霊夢: まあいいわ。
+  お茶でも淹れてくるから、
+  そこで待ってなさい。</pre>
+    </div>
+
+    <div class="cmd">
+      <div class="label">③ 実行する</div>
+<pre><span class="p">&gt; </span>tts script <span class="f">--cast</span> samples\script\cast.toml <span class="f">--script</span> samples\script\ep01.ja.txt <span class="f">--outdir</span> outputs\ep01
+
+<span class="out">7 台詞 / 3 キャラクター / エンジン: qwen, irodori
+
+--- qwen (1 台詞) ---
+[001] ナレーター  1.84秒  ある晴れた日のこと。
+
+--- irodori (6 台詞) ---
+[002] 霊夢  2.64秒  今日はいい天気ね。
+[003] 魔理沙  3.84秒  そうだな、絶好の弾幕日和だぜ！
+...
+
+7/7 台詞を生成。合計 23.8 秒</span></pre>
+    </div>
+
+    <h3>台本の書き方</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th style="min-width:150px">書き方</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">話者: 台詞</td><td>1 行 1 台詞。コロンは半角でも全角でもよい</td></tr>
+          <tr><td class="mono"># コメント</td><td>無視される。セクションの見出しに使う</td></tr>
+          <tr><td class="mono">（空行）</td><td>無視される。場面の区切りに自由に入れてよい</td></tr>
+          <tr><td class="mono">　インデント行</td><td>直前の台詞の続き。<b>区切り文字なしで連結</b>される</td></tr>
+          <tr><td class="mono">話者[key=値]: 台詞</td><td>その台詞だけ上書き。<code>id</code> <code>speed</code> <code>seed</code> <code>lang</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note warn">
+      <b>英語の台詞はインデント継続を使わない</b>
+      <p>
+        継続行は区切り文字なしで連結されるので（日本語に空白が入らないようにするため）、
+        英語だと <code>Hello.How are you?</code> のように単語がくっつく。1 行に収めること。
+      </p>
+    </div>
+
+    <h3>出力</h3>
+    <div class="files">outputs/ep01/
+  001-ナレーター.wav
+  002-霊夢.wav
+  003-魔理沙.wav
+  …
+  007-punchline.wav      <span class="cm">← [id=punchline] を付けた台詞</span>
+  manifest.json          <span class="cm">← 台詞ごとの尺と開始位置</span></div>
+
+    <p>
+      ファイル名の先頭が台本の並び順。<code>manifest.json</code> には
+      先頭からの累積オフセット（<code>start_sec</code>）が入るので、Remotion の
+      <code>&lt;Sequence from={...}&gt;</code> にそのまま使える。
+    </p>
+
+    <div class="note">
+      <b>モデルの読み込みは 1 エンジンにつき 1 回</b>
+      <p>
+        エンジン単位でまとめて処理するので、進捗表示は台本順ではなくエンジンごとに
+        まとまって出る。キャラクターを増やしてもエンジンが同じなら追加コストはない。
+      </p>
+    </div>
+
+    <p style="font-size:13.5px;color:var(--muted)">
+      台本の詳しい仕様は <code>docs/guide/script.md</code>、
+      声の作り方は <code>docs/guide/original-voice.md</code> にある。
+    </p>
+  </div>
+</section>
+
+<!-- ======================================================== バッチ -->
+<section id="batch">
+  <div class="wrap">
+    <h2>JSON からまとめて作る <span class="tag">tts batch</span></h2>
+    <p>
+      台本を使わず、機械的に生成した JSON から流したいときはこちら。
+      キャラクターの概念はなく、1 行 = 1 リクエスト。
+    </p>
+
+    <div class="cmd">
+      <div class="label">入力 JSON</div>
+<pre>[
+  {<span class="s">"id"</span>: <span class="s">"line-001"</span>, <span class="s">"text"</span>: <span class="s">"こんにちは。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>},
+  {<span class="s">"id"</span>: <span class="s">"line-002"</span>, <span class="s">"text"</span>: <span class="s">"今日はいい天気ですね。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>, <span class="s">"seed"</span>: 42},
+  {<span class="s">"id"</span>: <span class="s">"line-003"</span>, <span class="s">"text"</span>: <span class="s">"クローンもできます。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>,
+   <span class="s">"reference_audio"</span>: <span class="s">"ref/alice.wav"</span>}
+]</pre>
+    </div>
+
+    <div class="cmd">
+      <div class="label">実行する</div>
+<pre><span class="p">&gt; </span>tts batch <span class="f">--engine</span> qwen <span class="f">--input</span> samples\input.ja.json <span class="f">--outdir</span> outputs\batch</pre>
+    </div>
+
+    <ul class="plain">
+      <li>使えるキー: <code>id</code> <code>text</code> <code>language</code>
+          <code>reference_audio</code> <code>reference_text</code>
+          <code>voice_design</code> <code>seed</code> <code>speed</code></li>
+      <li><code>reference_audio</code> は<b>入力 JSON からの相対パス</b>で解決される</li>
+      <li>1 件失敗しても続けたいときは <code>--keep-going</code></li>
+    </ul>
+  </div>
+</section>
+
+<!-- =================================================== どれを使う -->
+<section id="which">
+  <div class="wrap">
+    <h2>どのエンジンを使うか</h2>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>エンジン</th>
+            <th class="ctr">日本語</th>
+            <th class="ctr">英語</th>
+            <th class="ctr">クローン</th>
+            <th class="ctr">声の設計</th>
+            <th class="ctr">話速</th>
+            <th>速度</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="q">
+            <td><span class="n">qwen</span></td>
+            <td class="ctr yes">○</td><td class="ctr yes">○</td>
+            <td class="ctr yes">○</td><td class="ctr yes">○</td>
+            <td class="ctr no">×</td><td>遅い</td>
+          </tr>
+          <tr class="c">
+            <td><span class="n">chatterbox</span></td>
+            <td class="ctr yes">○</td><td class="ctr yes">○</td>
+            <td class="ctr yes">○</td><td class="ctr no">×</td>
+            <td class="ctr no">×</td><td>速い</td>
+          </tr>
+          <tr class="i">
+            <td><span class="n">irodori</span></td>
+            <td class="ctr yes">○</td><td class="ctr no">×</td>
+            <td class="ctr yes">○</td><td class="ctr yes">○</td>
+            <td class="ctr yes">○</td><td>速い</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ul class="plain">
+      <li><b>まず試すなら chatterbox</b> — 軽くて速い</li>
+      <li><b>日英を同じ声で出すなら qwen</b> — 1 本で両言語をまかなえる</li>
+      <li><b>日本語のキャラクターなら irodori</b> — 48 kHz で表現力が高い。ただし英語は出せない</li>
+    </ul>
+
+    <div class="note">
+      <b>日英の両方が要るとき</b>
+      <p>
+        irodori で日本語の声を作ってマスター音声に固定し、
+        英語版はそれを <code>--ref</code> で qwen か chatterbox に渡す。
+        同一人物に聞こえるかは必ず耳で確認すること。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================== 困ったとき -->
+<section id="trouble">
+  <div class="wrap">
+    <h2>困ったとき</h2>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th style="min-width:200px">症状</th><th>対処</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>未構築</code> と出る</td>
+            <td><code>tts engines</code> で確認し、
+                <code>pwsh scripts\setup_engines.ps1 -Engines irodori</code> で個別に作り直す</td>
+          </tr>
+          <tr>
+            <td>生成が遅い</td>
+            <td><code>tts doctor</code> で <code>CUDA 利用不可</code> が出ていないか見る</td>
+          </tr>
+          <tr>
+            <td>エラーの詳細が見たい</td>
+            <td><code>--verbose</code> を付けるとエンジンのログがそのまま流れる</td>
+          </tr>
+          <tr>
+            <td>VRAM が足りない</td>
+            <td><code>python/engines.toml</code> の qwen のモデル ID を <code>0.6B</code> 版に変える</td>
+          </tr>
+          <tr>
+            <td>タイムアウトする</td>
+            <td><code>TTS_SAMPLE_READY_TIMEOUT</code>（既定 1800 秒）と
+                <code>TTS_SAMPLE_SYNTH_TIMEOUT</code>（既定 900 秒）で延ばせる</td>
+          </tr>
+          <tr>
+            <td>日本語が文字化けする</td>
+            <td>ターミナルのコードページを確認する（<code>chcp 65001</code>）</td>
+          </tr>
+          <tr>
+            <td>毎回違う声になる</td>
+            <td><code>--seed</code> を固定する。Voice Design はマスター音声に固定して
+                <code>--ref</code> に切り替える</td>
+          </tr>
+          <tr>
+            <td>台詞がくっついて読まれる</td>
+            <td>英語の台詞をインデント継続で書いている。1 行に収める</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    3 モデルとも商用利用可（Apache-2.0 / MIT）、ローカル生成なので従量課金なし。
+    ただし<b>参照音声そのものの権利は別</b>で、実在の人物の声をクローンする場合は
+    本人の同意と利用範囲の確認が必要。
+  </div>
+</footer>
+
+<script>
+  // コマンド欄にコピーボタンを付ける。プロンプト記号は落としてから渡す。
+  (function () {
+    var blocks = document.querySelectorAll(".cmd");
+    for (var i = 0; i < blocks.length; i++) {
+      (function (block) {
+        var pre = block.querySelector("pre");
+        if (!pre) return;
+
+        var button = document.createElement("button");
+        button.className = "copy";
+        button.type = "button";
+        button.textContent = "コピー";
+        button.setAttribute("aria-label", "コマンドをコピー");
+
+        button.addEventListener("click", function () {
+          // "> " のプロンプトと、出力例の行を除いた分だけを拾う
+          var text = Array.prototype.map
+            .call(pre.childNodes, function (node) {
+              if (node.nodeType === 1 && node.classList.contains("out")) return "";
+              return node.textContent;
+            })
+            .join("")
+            .split("\n")
+            .map(function (line) { return line.replace(/^>\s?/, ""); })
+            .join("\n")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
+
+          var done = function () {
+            button.textContent = "コピーした";
+            button.classList.add("done");
+            setTimeout(function () {
+              button.textContent = "コピー";
+              button.classList.remove("done");
+            }, 1600);
+          };
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () {
+              button.textContent = "コピーできず";
+            });
+          } else {
+            button.textContent = "コピーできず";
+          }
+        });
+
+        block.appendChild(button);
+      })(blocks[i]);
+    }
+  })();
+</script>

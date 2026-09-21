@@ -1,0 +1,41 @@
+[project]
+name = "tts-sample"
+version = "0.1.0"
+description = "Qwen3-TTS / Chatterbox / Irodori-TTS を共通インターフェースで扱うサンプル"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+# 共通層は torch に依存しない。各モデルの重い依存は .venvs/engine-* 側に隔離する。
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.9"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tts_sample"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# vendor は上流リポジトリの clone なので対象外。
+extend-exclude = ["engines/irodori/vendor"]
+
+[tool.ruff.lint]
+# E402 を有効にしているのは、runner.py が「torch より前に stdout を退避する」ために
+# わざと import を遅らせており、その意図を noqa で明示したいため。
+extend-select = ["E", "I", "SIM", "PL", "RUF", "C4"]
+ignore = [
+    # コメント・文字列・docstring が日本語なので、全角の「）」等を
+    # 半角と紛らわしいと警告されても意味がない。
+    "RUF001", "RUF002", "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# テストでは期待値を直接書くほうが読みやすい。
+"tests/*" = ["PLR2004"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

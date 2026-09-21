@@ -1,0 +1,7 @@
+# 英語版。Irodori は英語を出せないので、cast.en.toml で
+# 同じキャラクターを qwen / chatterbox に割り当てて使う。
+
+Narrator: It was a clear day.
+
+Reimu: The weather is nice today.
+Marisa: Perfect for a danmaku duel!

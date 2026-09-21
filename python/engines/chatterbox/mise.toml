@@ -1,0 +1,4 @@
+# 仮想環境はこのディレクトリではなく .venvs/engine-chatterbox に作る。
+# ルートの mise.toml が TTS_REPO_ROOT を定義している。
+[env]
+UV_PROJECT_ENVIRONMENT = "{{env.TTS_REPO_ROOT}}/.venvs/engine-chatterbox"

@@ -1,0 +1,27 @@
+# 共通層・各エンジンの仮想環境をすべて Python 3.12 で揃える。
+# 3 モデルの推奨が Qwen=3.12 / Chatterbox>=3.10 / Irodori>=3.10 のため 3.12 が交差点。
+#
+# ライブラリは Python 本体には一切入れず、uv が作る仮想環境にのみ入れる。
+# 仮想環境はリポジトリ直下の .venvs/ にまとめる（各プロジェクトの中には作らない）。
+#
+#   .venvs/common             共通層。tts コマンド。torch なし
+#   .venvs/engine-qwen        Qwen3-TTS       transformers 4.57.3
+#   .venvs/engine-chatterbox  Chatterbox      transformers 5.2.0
+#   .venvs/engine-irodori     Irodori-TTS     transformers 5.12.x
+#
+# 置き場の指定は各プロジェクトの mise.toml が UV_PROJECT_ENVIRONMENT で行う。
+# そこから参照できるよう、ここでリポジトリのルートを変数にしておく。
+
+[tools]
+python = "3.12"
+
+[env]
+# 各プロジェクトの mise.toml から {{env.TTS_REPO_ROOT}} で参照する。
+TTS_REPO_ROOT = "{{config_root}}"
+
+# uv が自前の CPython を落とすのを防ぐ。
+UV_PYTHON_DOWNLOADS = "never"
+# mise が PATH に出す Python だけを使わせる。
+UV_PYTHON_PREFERENCE = "only-system"
+# キャッシュと成果物が別ドライブのときのハードリンク警告を避ける。
+UV_LINK_MODE = "copy"

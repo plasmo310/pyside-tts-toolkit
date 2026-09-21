@@ -1,0 +1,82 @@
+# エンジン定義。
+#
+# 3 モデルは transformers / torch のピンが互いに排他的なので、1 つの venv には
+# 同居できない。エンジンごとに venv を持ち、共通層はサブプロセス越しに呼ぶ。
+#
+#   qwen       : transformers==4.57.3
+#   chatterbox : transformers==5.2.0, torch==2.6.0 (Blackwell 対応のため上書きする)
+#   irodori    : transformers>=5.12.1, torch>=2.10
+#
+# venv はリポジトリ直下の .venvs/ にまとめてある（各プロジェクトの中には作らない）。
+#   venv   … リポジトリのルートからの相対パス
+#   runner / cwd … リポジトリのルートからの相対パス
+# 構築は scripts/setup_engines.ps1 を参照。
+
+[qwen]
+description = "Qwen3-TTS 1.7B — 日英とも高品質。3 秒クローンと Voice Design に対応。"
+venv = ".venvs/engine-qwen"
+runner = "python/engines/qwen/runner.py"
+cwd = "python/engines/qwen"
+setup_doc = "01_qwen3-tts.md"
+languages = ["ja", "en"]
+capabilities = ["CLONE", "SEED", "MULTILINGUAL", "VOICE_DESIGN"]
+model_id = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+
+[qwen.options]
+# 参照音声ありのときに使うクローンモデル。VRAM が足りなければ 0.6B に下げる。
+base_model = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+# 参照音声なしのときに使うプリセット話者モデル。
+custom_voice_model = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+# --voice-design を渡したときに使うモデル（文章から架空の声を作る）。
+voice_design_model = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+# 参照音声なしのときに使うプリセット話者。CustomVoice モデルが持つ話者は
+# aiden, dylan, eric, ono_anna, ryan, serena, sohee, uncle_fu, vivian
+# （`tts synth` のエラーメッセージにも一覧が出る）。言語ごとに選べる。
+default_speaker = "ono_anna"
+dtype = "bfloat16"
+device = "cuda:0"
+# flash_attention_2 は Windows でビルドが通らないため sdpa を使う。
+attn_implementation = "sdpa"
+max_new_tokens = 2048
+
+[qwen.options.speakers]
+ja = "ono_anna"
+en = "ryan"
+
+[chatterbox]
+description = "Chatterbox Multilingual V3 — 0.5B、23 言語、導入が最も軽い。"
+venv = ".venvs/engine-chatterbox"
+runner = "python/engines/chatterbox/runner.py"
+cwd = "python/engines/chatterbox"
+setup_doc = "02_chatterbox.md"
+languages = ["ja", "en"]
+capabilities = ["CLONE", "SEED", "MULTILINGUAL"]
+model_id = "ResembleAI/chatterbox (multilingual v3)"
+
+[chatterbox.options]
+t3_model = "v3"
+device = "cuda"
+
+[irodori]
+description = "Irodori-TTS v4.1 Small — 日本語専用・48kHz。Voice Design と感情表現に強い。"
+# Irodori は PyPI 未公開で、依存の dacvae も PyPI に無いため clone が唯一の経路。
+# clone 自体は python/engines/irodori/vendor/ に置くが、venv は他と同じ .venvs/ へ。
+venv = ".venvs/engine-irodori"
+runner = "python/engines/irodori/runner.py"
+cwd = "python/engines/irodori/vendor/Irodori-TTS"
+setup_doc = "03_irodori-tts.md"
+languages = ["ja"]
+capabilities = ["CLONE", "SEED", "SPEED", "VOICE_DESIGN"]
+model_id = "Aratako/Irodori-TTS-v4.1-Small"
+
+[irodori.options]
+hf_checkpoint = "Aratako/Irodori-TTS-v4.1-Small"
+codec_repo = "Aratako/Semantic-DACVAE-Japanese-32dim"
+model_precision = "fp32"
+num_steps = 24
+cfg_scale_text = 3.0
+cfg_scale_caption = 3.0
+cfg_scale_speaker = 5.0
+# Voice Design の既定値。--voice-design を渡すとリクエストごとに上書きされる。
+# 参照音声（--ref）と併用すると、声質は参照音声・話し方は caption になる。
+caption = ""

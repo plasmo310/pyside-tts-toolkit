@@ -1,0 +1,31 @@
+# キャラクターの声の定義。一度書けば台本から使い回せる。
+#
+# キャラクター名が日本語のときは TOML の仕様上テーブル名をクォートする:
+#   [voices."霊夢"]   ← OK
+#   [voices.霊夢]     ← 構文エラー
+#
+# 使えるキー:
+#   engine           必須。qwen / chatterbox / irodori
+#   reference_audio  参照音声（この cast.toml からの相対パス）
+#   reference_text   参照音声の書き起こし（Qwen のクローン品質が上がる）
+#   voice_design     文章による声の設計（qwen / irodori のみ）
+#   language         既定の言語
+#   seed             既定の乱数シード。固定すると声がぶれにくい
+#   speed            既定の話速（irodori のみ）
+
+[voices."霊夢"]
+engine = "irodori"
+voice_design = "落ち着いた少女の声。淡々としていて、少し呆れたような話し方。"
+language = "ja"
+seed = 42
+
+[voices."魔理沙"]
+engine = "irodori"
+voice_design = "元気で明るい少女の声。やや早口で、楽しそうに話す。"
+language = "ja"
+seed = 7
+
+[voices."ナレーター"]
+engine = "qwen"
+language = "ja"
+seed = 100
