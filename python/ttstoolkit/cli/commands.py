@@ -1,8 +1,9 @@
 """各サブコマンドの処理。
 
 引数の定義と dispatch は `__main__.py` にあり、ここには「解析済みの引数を
-受け取って仕事をする」関数だけを置く。どれも `core` の API を呼ぶだけで、
-合成そのもののロジックは持たない。
+受け取って仕事をする」関数だけを置く。合成は `core.tts_service.TTSService`
+に頼み、一覧や状態の確認は `core.engine` を直接見る。合成そのものの
+ロジックはここには無い。
 
 進捗とエラーは標準エラーへ (`logger`)、結果そのもの (書き出したパスなど)
 は標準出力へ出す。パイプで拾うときに混ざらないようにするため。
@@ -17,29 +18,29 @@ import os
 import subprocess
 import sys
 
-from ttstoolkit.core.interface import create_engine
-from ttstoolkit.core.jobs import load_batch_items, run_batch, run_script
+from ttstoolkit.core.engine import (
+    Capability,
+    EngineSpec,
+    SynthesisResult,
+    available_engines,
+)
 from ttstoolkit.core.paths import (
     BATCH_DIR,
     ROOT_DIR,
     SCRIPT_DIR,
     VOICES_DIR,
+    default_output_path,
+    resolve_existing,
     resolve_input,
+    resolve_output,
 )
-from ttstoolkit.core.script import load_script
 from ttstoolkit.core.settings import (
     ROOT_LOGGER_NAME,
     SUBPROCESS_FLAGS,
     TTSToolkitError,
 )
-from ttstoolkit.core.types import (
-    Capability,
-    EngineSpec,
-    SynthesisResult,
-    default_output_path,
-)
+from ttstoolkit.core.tts_service import TTSService
 from ttstoolkit.engine._shared.protocol import SynthesisRequest
-from ttstoolkit.tool_config import available_engines
 
 logger = logging.getLogger(ROOT_LOGGER_NAME)
 
@@ -74,26 +75,6 @@ _BLACKWELL_ARCH_SUFFIX = "_120"
 # ---------------------------------------------------------------------
 # 共通のヘルパ
 # ---------------------------------------------------------------------
-
-
-def resolve_existing(path: str, default_dir: str, missing_message: str) -> str:
-    """入力パスを解決し、実在することを確かめる。
-
-    Args:
-        path: 利用者が指定したパス。
-        default_dir: 見つからないときに最後に探す既定の置き場。
-        missing_message: 見つからないときの文言。末尾にパスが付く。
-
-    Returns:
-        str: 実在が確認できたパス。
-
-    Raises:
-        TTSToolkitError: どこにも見つからないとき。
-    """
-    resolved = resolve_input(path, default_dir)
-    if not os.path.isfile(resolved):
-        raise TTSToolkitError(f"{missing_message}: {resolved}")
-    return resolved
 
 
 def report_result(result: SynthesisResult) -> None:
@@ -138,7 +119,10 @@ def cmd_synth(args: argparse.Namespace) -> int:
 
     request = SynthesisRequest(
         text=text,
-        output_path=_resolve_output(args, text),
+        output_path=(
+            resolve_output(args.output_dir, args.output)
+            or default_output_path(args.engine, text, args.output_dir)
+        ),
         language=args.language,
         reference_audio=reference,
         reference_text=args.reference_text,
@@ -147,9 +131,7 @@ def cmd_synth(args: argparse.Namespace) -> int:
         speed=args.speed,
     )
 
-    with create_engine(args.engine, verbose=args.verbose) as engine:
-        result = engine.synthesize(request)
-
+    result = TTSService(verbose=args.verbose).synthesize(args.engine, request)
     report_result(result)
     return 0
 
@@ -175,26 +157,6 @@ def _read_text(args: argparse.Namespace) -> str:
         return file.read().strip()
 
 
-def _resolve_output(args: argparse.Namespace, text: str) -> str:
-    """書き出し先のパスを決める。
-
-    `--output` が絶対パスならそのまま、相対パスなら `--output-dir` から
-    たどる。省略されたときはテキストから決まる名前を使う。
-
-    Args:
-        args: 解析済みの引数。
-        text: 読み上げるテキスト。
-
-    Returns:
-        str: 書き出す wav のパス。
-    """
-    if args.output is None:
-        return default_output_path(args.engine, text, args.output_dir)
-    if os.path.isabs(args.output):
-        return args.output
-    return os.path.join(args.output_dir, args.output)
-
-
 # ---------------------------------------------------------------------
 # batch
 # ---------------------------------------------------------------------
@@ -209,18 +171,13 @@ def cmd_batch(args: argparse.Namespace) -> int:
     Returns:
         int: 全件成功なら 0、1 件でも失敗があれば 1。
     """
-    input_path = resolve_existing(
-        args.input, BATCH_DIR, "Batch input not found"
-    )
-    items = load_batch_items(input_path)
-    logger.info("%d items from %s", len(items), input_path)
-
-    outcome = run_batch(
+    outcome = TTSService(verbose=args.verbose).run_batch(
         engine_name=args.engine,
-        items=items,
+        input_path=resolve_existing(
+            args.input, BATCH_DIR, "Batch input not found"
+        ),
         output_dir=args.output_dir,
         keep_going=args.keep_going,
-        verbose=args.verbose,
         on_progress=_print_progress,
     )
 
@@ -247,21 +204,13 @@ def cmd_script(args: argparse.Namespace) -> int:
     script_path = resolve_existing(
         args.script, SCRIPT_DIR, "Script file not found"
     )
-    script = load_script(_resolve_cast(args, script_path), script_path)
 
-    logger.info(
-        "%d lines / %d characters / engines: %s",
-        len(script.lines),
-        len(script.voices_used()),
-        ", ".join(script.engines_used()),
-    )
-
-    outcome = run_script(
-        script=script,
+    outcome = TTSService(verbose=args.verbose).run_script(
+        cast_path=_resolve_cast(args, script_path),
+        script_path=script_path,
         output_dir=args.output_dir,
         gap_sec=args.gap,
         keep_going=args.keep_going,
-        verbose=args.verbose,
         on_progress=_print_progress,
     )
 
@@ -327,7 +276,7 @@ def cmd_engines(args: argparse.Namespace) -> int:
         print(f"  model  {spec.model_id}")
         print(f"  python {spec.python}")
         if not spec.installed:
-            print(f"  -> not set up; see docs/setup/{spec.setup_doc}")
+            print(f"  -> not set up; see {spec.setup_doc_path}")
     return 0
 
 
@@ -381,7 +330,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     for name, spec in available_engines().items():
         print(f"\n[{name}] {spec.model_id}")
         if not spec.installed:
-            print(f"  not set up; see docs/setup/{spec.setup_doc}")
+            print(f"  not set up; see {spec.setup_doc_path}")
             is_ready = False
             continue
         print(f"  {_probe_engine(spec)}")

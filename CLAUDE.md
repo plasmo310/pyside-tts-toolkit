@@ -21,6 +21,11 @@ python/ttstoolkit/  GUI・CLI・処理本体をまとめたパッケージ
   cli/              単一入口。python -m ttstoolkit.cli <command>
   gui/              PySide6 の MVC
   core/             CLI / GUI 共用の処理本体（親プロセス側）
+    tts_service.py  ルート。合成・バッチ・台本はここに頼む
+    engine.py       エンジンの定義・対応機能・引き当て
+    paths.py        入出力フォルダとパスの解決
+    settings.py     OS 差分 / 例外の基底 / ロガー
+    _internal/      core の中からしか呼ばない部品
   engine/           別の仮想環境で動く runner
     _shared/        両側が守る契約（protocol）と runner の土台
 engine_env/         各エンジンの仮想環境を作るための定義
@@ -52,6 +57,11 @@ REM CLI
 
 - `python/ttstoolkit/core` の約束（`print` しない / `sys.exit` しない / 失敗は
   `TTSToolkitError`）を壊さない
+- `core` の入口は 2 つだけ。実行は `core/tts_service.py`、調べるだけなら
+  `core/engine.py`。**`core/_internal/` を `core` の外から import しない**
+  （呼んでよいのは `core/tts_service.py` だけ）
+- `core` の依存は上から下への一方向。`settings.py` が最下層、
+  `tts_service.py` が最上層。関数内 import は増やさない
 - runner は torch を**関数の中で** import する。
   `engine/_shared/runner_base.py` より先に読み込まれると stdout の退避が
   間に合わない。**core からあのファイルを import しない**（標準出力が壊れる）

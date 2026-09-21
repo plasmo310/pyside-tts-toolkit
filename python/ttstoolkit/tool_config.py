@@ -1,16 +1,11 @@
-"""ツールの設定と、3 つのエンジンの定義。
+"""ツールの設定 ── GUI の見た目・保存先・リソースのパス。
 
-ここには 2 種類の設定が入っている。
+呼ばれる先: main.py, gui/
+呼ぶ先: core.paths, core.settings
 
-1. `ToolConfig` ... GUI の見た目・保存先・リソースのパス
-2. `ENGINE_DEFINITIONS` ... どのモデルをどの仮想環境で動かすかの定義
-
-定義を持っているのがここなので、名前からの引き当て (`get_spec` など) も
-ここに置いている。定義から実際に動くエンジンを作るのは
-`core.interface.create_engine`。
-
-画面に並べる選択肢は `definitions.py` に置いてある。Qt には依存しない
-ので、CLI からもそのまま import できる。
+どのモデルをどの仮想環境で動かすかの定義 (`ENGINE_DEFINITIONS`) と、
+名前からの引き当て (`get_spec` など) は `core.engine` にある。
+画面に並べる選択肢は `definitions.py`。
 """
 
 from __future__ import annotations
@@ -18,19 +13,11 @@ from __future__ import annotations
 import os
 import sys
 
-from ttstoolkit.core.paths import PYTHON_DIR, ROOT_DIR, venv_python
+from ttstoolkit.core.paths import ROOT_DIR
 from ttstoolkit.core.settings import IS_WINDOWS
-from ttstoolkit.core.types import Capability, EngineNotFoundError, EngineSpec
-from ttstoolkit.definitions import EngineType
 
 # スタイルシートの中で resources/ の絶対パスに置き換えるプレースホルダ
 _RESOURCES_DIR_PLACEHOLDER = "{RESOURCES_DIR}"
-
-# Irodori は PyPI 未公開で、依存の dacvae も PyPI に無い。上流リポジトリを
-# clone したものを検索パスに足して import する。
-_IRODORI_VENDOR = os.path.join(
-    ROOT_DIR, "engine_env", "irodori", "vendor", "Irodori-TTS"
-)
 
 
 class ToolConfig:
@@ -124,145 +111,3 @@ class ToolConfig:
         return stylesheet.replace(
             _RESOURCES_DIR_PLACEHOLDER, resources_dir.replace("\\", "/")
         )
-
-
-# ---------------------------------------------------------------------------
-# エンジンの定義
-#
-# 3 モデルは transformers / torch のピンが互いに排他的で、1 つの仮想環境には
-# 同居できない。エンジンごとに仮想環境を持ち、共通層はサブプロセス越しに
-# runner を呼ぶ。
-#
-#   qwen       : transformers==4.57.3
-#   chatterbox : transformers==5.2.0, torch==2.6.0 (Blackwell 対応で上書き)
-#   irodori    : transformers>=5.12.1, torch>=2.10
-#
-# 仮想環境の定義は engine_env/<name>/pyproject.toml、実体は .venvs/engine-*。
-# 構築手順は scripts/win/setup_engines.ps1 を参照。
-# ---------------------------------------------------------------------------
-
-ENGINE_DEFINITIONS: dict[str, EngineSpec] = {
-    EngineType.QWEN.value: EngineSpec(
-        name=EngineType.QWEN.value,
-        description=(
-            "Qwen3-TTS 1.7B - high quality in both Japanese and English; "
-            "3-second cloning and voice design"
-        ),
-        capabilities=(
-            Capability.CLONE
-            | Capability.SEED
-            | Capability.MULTILINGUAL
-            | Capability.VOICE_DESIGN
-        ),
-        languages=("ja", "en"),
-        model_id="Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-        python=venv_python("engine-qwen"),
-        runner="ttstoolkit.engine.qwen.runner",
-        cwd=ROOT_DIR,
-        setup_doc="01_qwen3-tts.md",
-        python_path=(PYTHON_DIR,),
-        options={
-            # 参照音声ありのときに使うクローンモデル。
-            # VRAM が足りなければ 0.6B に下げる。
-            "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-            # 参照音声なしのときに使うプリセット話者モデル。
-            "custom_voice_model": ("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"),
-            # 文章から架空の声を作るときに使うモデル。
-            "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-            # CustomVoice が持つ話者は aiden, dylan, eric, ono_anna,
-            # ryan, serena, sohee, uncle_fu, vivian の 9 名。
-            "default_speaker": "ono_anna",
-            "speakers": {"ja": "ono_anna", "en": "ryan"},
-            "dtype": "bfloat16",
-            "device": "cuda:0",
-            # flash_attention_2 は Windows でビルドが通らないため sdpa。
-            "attn_implementation": "sdpa",
-            "max_new_tokens": 2048,
-        },
-    ),
-    EngineType.CHATTERBOX.value: EngineSpec(
-        name=EngineType.CHATTERBOX.value,
-        description=(
-            "Chatterbox Multilingual V3 - 0.5B, 23 languages, "
-            "the lightest to set up"
-        ),
-        capabilities=(
-            Capability.CLONE | Capability.SEED | Capability.MULTILINGUAL
-        ),
-        languages=("ja", "en"),
-        model_id="ResembleAI/chatterbox (multilingual v3)",
-        python=venv_python("engine-chatterbox"),
-        runner="ttstoolkit.engine.chatterbox.runner",
-        cwd=ROOT_DIR,
-        setup_doc="02_chatterbox.md",
-        python_path=(PYTHON_DIR,),
-        options={
-            "t3_model": "v3",
-            "device": "cuda",
-            "exaggeration": 0.5,
-            "cfg_weight": 0.5,
-            "temperature": 0.8,
-        },
-    ),
-    EngineType.IRODORI.value: EngineSpec(
-        name=EngineType.IRODORI.value,
-        description=(
-            "Irodori-TTS v4.1 Small - Japanese only, 48 kHz, "
-            "strong at voice design and emotion"
-        ),
-        capabilities=(
-            Capability.CLONE
-            | Capability.SEED
-            | Capability.SPEED
-            | Capability.VOICE_DESIGN
-        ),
-        languages=("ja",),
-        model_id="Aratako/Irodori-TTS-v4.1-Small",
-        python=venv_python("engine-irodori"),
-        runner="ttstoolkit.engine.irodori.runner",
-        # 上流リポジトリは相対パスで作業ファイルを置くので clone の中で動かす。
-        cwd=_IRODORI_VENDOR,
-        setup_doc="03_irodori-tts.md",
-        python_path=(PYTHON_DIR, _IRODORI_VENDOR),
-        options={
-            "hf_checkpoint": "Aratako/Irodori-TTS-v4.1-Small",
-            "codec_repo": "Aratako/Semantic-DACVAE-Japanese-32dim",
-            "model_precision": "fp32",
-            "num_steps": 24,
-            "cfg_guidance_mode": "independent",
-            "cfg_scale_text": 3.0,
-            "cfg_scale_caption": 3.0,
-            "cfg_scale_speaker": 5.0,
-        },
-    ),
-}
-
-
-def engine_names() -> list[str]:
-    """使えるエンジン名を定義順で返す。"""
-    return list(ENGINE_DEFINITIONS)
-
-
-def available_engines() -> dict[str, EngineSpec]:
-    """エンジン名 -> 定義の辞書を返す。"""
-    return dict(ENGINE_DEFINITIONS)
-
-
-def get_spec(name: str) -> EngineSpec:
-    """エンジン名から定義を返す。
-
-    Args:
-        name: エンジン名。
-
-    Returns:
-        EngineSpec: そのエンジンの定義。
-
-    Raises:
-        EngineNotFoundError: 定義されていない名前のとき。
-    """
-    spec = ENGINE_DEFINITIONS.get(name)
-    if spec is None:
-        raise EngineNotFoundError(
-            f"Unknown engine '{name}' (available: {', '.join(engine_names())})"
-        )
-    return spec

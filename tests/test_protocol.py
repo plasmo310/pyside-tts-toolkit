@@ -9,9 +9,8 @@ import wave
 
 import pytest
 
-from ttstoolkit.core.paths import PYTHON_DIR
-from ttstoolkit.core.subprocess_engine import SubprocessEngine
-from ttstoolkit.core.types import (
+from ttstoolkit.core._internal.engine_process import SubprocessEngine
+from ttstoolkit.core.engine import (
     Capability,
     EngineNotInstalledError,
     EngineProcessError,
@@ -19,6 +18,7 @@ from ttstoolkit.core.types import (
     UnsupportedLanguageError,
     UnsupportedParameterError,
 )
+from ttstoolkit.core.paths import PYTHON_DIR
 from ttstoolkit.engine._shared.protocol import (
     SynthesisRequest,
     SynthesisResponse,
@@ -316,8 +316,8 @@ def test_importing_core_does_not_hijack_stdout() -> None:
     """
     code = (
         "import sys;"
-        "import ttstoolkit.core.subprocess_engine;"
-        "import ttstoolkit.core.jobs;"
+        "import ttstoolkit.core._internal.engine_process;"
+        "import ttstoolkit.core.tts_service;"
         "import ttstoolkit.cli.commands;"
         "print('clean' if sys.stdout is not sys.stderr else 'hijacked')"
     )

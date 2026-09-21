@@ -120,7 +120,7 @@ def parse_options() -> dict:
     """起動引数の `--options` を解釈する。
 
     Returns:
-        dict: エンジン固有の設定 (`tool_config.ENGINE_DEFINITIONS`)。
+        dict: エンジン固有の設定 (`core.engine.ENGINE_DEFINITIONS`)。
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--options", default="{}")

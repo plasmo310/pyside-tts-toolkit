@@ -1,9 +1,11 @@
 """メイン画面 Model。
 
-`engine` パッケージの API を呼ぶのはこのクラスだけ。Qt のウィジェット
-には触らず (保存に `QSettings` を使うだけ)、進捗は渡された関数へ、
-失敗は `TTSToolkitError` で返す。CLI の各スクリプトの `main()` に
-あたる部分をここに置いている。
+`core` を呼ぶのはこのクラスだけ。Qt のウィジェットには触らず
+(保存に `QSettings` を使うだけ)、進捗は渡された関数へ、失敗は
+`TTSToolkitError` で返す。CLI の `commands.py` にあたる部分をここに置く。
+
+合成は `core.tts_service.TTSService` に頼み、エンジンの状態を調べるときは
+`core.engine` を直接見る。
 """
 
 from __future__ import annotations
@@ -14,17 +16,26 @@ from typing import Any
 
 from PySide6.QtCore import QByteArray, QSettings
 
-from ttstoolkit.core.interface import create_engine
-from ttstoolkit.core.jobs import JobOutcome, run_script
-from ttstoolkit.core.paths import SCRIPT_DIR, VOICES_DIR, resolve_input
-from ttstoolkit.core.script import load_script
+from ttstoolkit.core.engine import get_spec
+from ttstoolkit.core.paths import (
+    SCRIPT_DIR,
+    VOICES_DIR,
+    default_output_path,
+    resolve_existing,
+    resolve_output,
+)
 from ttstoolkit.core.settings import TTSToolkitError, get_logger
-from ttstoolkit.core.types import default_output_path
+from ttstoolkit.core.tts_service import (
+    CancelFunc,
+    JobOutcome,
+    ProgressFunc,
+    TTSService,
+)
 from ttstoolkit.engine._shared.protocol import SynthesisRequest
 from ttstoolkit.gui.widgets.script_tab import ScriptTabRequest
 from ttstoolkit.gui.widgets.synthesis_tab import SynthesisTabRequest
 from ttstoolkit.gui.widgets.voice_design_tab import VoiceDesignTabRequest
-from ttstoolkit.tool_config import ToolConfig, get_spec
+from ttstoolkit.tool_config import ToolConfig
 
 _logger = get_logger(__name__)
 
@@ -69,13 +80,19 @@ class MainModel:
         if not request.text:
             raise TTSToolkitError("Enter the text to speak")
 
-        reference = self.__resolve_reference(request.reference_audio)
-        output_path = self.__resolve_output(
-            request.output_dir,
-            request.output_name,
-            default_output_path(
-                request.engine, request.text, request.output_dir
-            ),
+        reference = (
+            resolve_existing(
+                request.reference_audio,
+                VOICES_DIR,
+                "Reference audio not found",
+            )
+            if request.reference_audio
+            else None
+        )
+        output_path = resolve_output(
+            request.output_dir, request.output_name
+        ) or default_output_path(
+            request.engine, request.text, request.output_dir
         )
 
         synthesis = SynthesisRequest(
@@ -89,9 +106,9 @@ class MainModel:
             speed=request.speed,
         )
 
-        with create_engine(request.engine, verbose=verbose) as engine:
-            result = engine.synthesize(synthesis)
-
+        result = TTSService(verbose=verbose).synthesize(
+            request.engine, synthesis
+        )
         _logger.info(
             "wrote %s (%d Hz / %.2fs)",
             result.output_path,
@@ -123,11 +140,9 @@ class MainModel:
         if not request.text:
             raise TTSToolkitError("Enter the sample text to read")
 
-        output_path = self.__resolve_output(
-            request.output_dir,
-            request.output_name,
-            os.path.join(request.output_dir, "master.wav"),
-        )
+        output_path = resolve_output(
+            request.output_dir, request.output_name
+        ) or os.path.join(request.output_dir, "master.wav")
 
         synthesis = SynthesisRequest(
             text=request.text,
@@ -137,9 +152,9 @@ class MainModel:
             seed=request.seed,
         )
 
-        with create_engine(request.engine, verbose=verbose) as engine:
-            result = engine.synthesize(synthesis)
-
+        result = TTSService(verbose=verbose).synthesize(
+            request.engine, synthesis
+        )
         _logger.info("wrote %s", result.output_path)
         _logger.info(
             "Keep this take and clone from it to reuse the same voice"
@@ -152,8 +167,8 @@ class MainModel:
     def run_script(
         self,
         request: ScriptTabRequest,
-        on_progress: object,
-        is_canceled: object,
+        on_progress: ProgressFunc,
+        is_canceled: CancelFunc,
         verbose: bool = False,
     ) -> JobOutcome:
         """台本をまとめて合成して書き出す。
@@ -175,31 +190,22 @@ class MainModel:
         if not request.script_path:
             raise TTSToolkitError("Select a script file")
 
-        script = load_script(
-            self.__resolve_existing(request.cast_path, "Cast file not found"),
-            self.__resolve_existing(
-                request.script_path, "Script file not found"
+        return TTSService(verbose=verbose).run_script(
+            cast_path=resolve_existing(
+                request.cast_path, SCRIPT_DIR, "Cast file not found"
             ),
-        )
-        _logger.info(
-            "%d lines / %d characters / engines: %s",
-            len(script.lines),
-            len(script.voices_used()),
-            ", ".join(script.engines_used()),
-        )
-
-        return run_script(
-            script=script,
+            script_path=resolve_existing(
+                request.script_path, SCRIPT_DIR, "Script file not found"
+            ),
             output_dir=request.output_dir,
             gap_sec=request.gap_sec,
             keep_going=request.keep_going,
-            verbose=verbose,
             on_progress=on_progress,
             is_canceled=is_canceled,
         )
 
     # ------------------------------------------------------------------
-    # 入力の解決とヘルパ
+    # エンジンの状態
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -224,71 +230,7 @@ class MainModel:
         Returns:
             str: `docs/setup/` から始まるパス。
         """
-        return f"docs/setup/{get_spec(engine).setup_doc}"
-
-    @staticmethod
-    def __resolve_reference(path: str | None) -> str | None:
-        """参照音声のパスを解決し、実在することを確かめる。
-
-        Args:
-            path: 画面で指定されたパス。
-
-        Returns:
-            str | None: 実在が確認できたパス。未指定なら None。
-
-        Raises:
-            TTSToolkitError: どこにも見つからないとき。
-        """
-        if not path:
-            return None
-        resolved = resolve_input(path, VOICES_DIR)
-        if not os.path.isfile(resolved):
-            raise TTSToolkitError(f"Reference audio not found: {resolved}")
-        return resolved
-
-    @staticmethod
-    def __resolve_existing(path: str, missing_message: str) -> str:
-        """台本まわりのパスを解決し、実在することを確かめる。
-
-        Args:
-            path: 画面で指定されたパス。
-            missing_message: 見つからないときの文言。
-
-        Returns:
-            str: 実在が確認できたパス。
-
-        Raises:
-            TTSToolkitError: どこにも見つからないとき。
-        """
-        resolved = resolve_input(path, SCRIPT_DIR)
-        if not os.path.isfile(resolved):
-            raise TTSToolkitError(f"{missing_message}: {resolved}")
-        return resolved
-
-    @staticmethod
-    def __resolve_output(
-        output_dir: str, output_name: str, fallback: str
-    ) -> str:
-        """書き出し先のパスを決める。
-
-        Args:
-            output_dir: 書き出し先ディレクトリ。
-            output_name: 書き出すファイル名。空なら fallback を使う。
-            fallback: ファイル名が空のときのパス。
-
-        Returns:
-            str: 書き出す wav のパス。
-
-        Raises:
-            TTSToolkitError: 書き出し先が未指定のとき。
-        """
-        if not output_dir:
-            raise TTSToolkitError("Select an output directory")
-        if not output_name:
-            return fallback
-        if os.path.isabs(output_name):
-            return output_name
-        return os.path.join(output_dir, output_name)
+        return get_spec(engine).setup_doc_path
 
     # ------------------------------------------------------------------
     # 保存データ

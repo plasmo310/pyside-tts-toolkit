@@ -184,18 +184,18 @@ tests/               共通層のテスト（モデル不要）
 ## Python から使う
 
 ```python
-from ttstoolkit.core.interface import create_engine
+from ttstoolkit.core.tts_service import TTSService
 from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
-with create_engine("irodori") as engine:
-    result = engine.synthesize(
-        SynthesisRequest(
-            text="こんにちは。",
-            output_path="output/hello.wav",
-            language="ja",
-            seed=42,
-        )
-    )
+result = TTSService().synthesize(
+    "irodori",
+    SynthesisRequest(
+        text="こんにちは。",
+        output_path="output/hello.wav",
+        language="ja",
+        seed=42,
+    ),
+)
     print(result.sample_rate, result.duration_sec)
 ```
 

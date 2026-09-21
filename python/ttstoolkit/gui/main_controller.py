@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from ttstoolkit.core.jobs import JobOutcome
+from ttstoolkit.core.tts_service import JobOutcome
 from ttstoolkit.gui.main_model import MainModel
 from ttstoolkit.gui.main_view import MainView
 from ttstoolkit.gui.task_runner import TaskFunc, TaskRunner

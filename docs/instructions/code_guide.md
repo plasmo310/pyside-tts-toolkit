@@ -44,6 +44,9 @@ def resolve_input(path: str, default_dir: str | None = None) -> str:
   （`_LogPane`, `_PREVIEW_CHARS`）
 - 接尾辞: `*_tab`（タブ）、`*_row`（入力行）、`*_runner`（エンジンの runner）、
   `*_config`
+- パッケージの中だけで使うモジュールは `_internal/` に入れる。
+  `__init__.py` を置かないので再エクスポートで隠せない。フォルダ名で示す
+  （`pip` の `pip/_internal/` と同じ）
 
 ### Qt のシグナルとスロット
 
@@ -70,10 +73,36 @@ def resolve_input(path: str, default_dir: str | None = None) -> str:
 
 ## python/ttstoolkit/core の約束
 
+### 入口は 2 つだけ
+
+```
+core/
+  tts_service.py          公開 / 実行   合成・バッチ・台本はここに頼む
+  engine.py               公開 / 参照   一覧・対応機能・構築済みか
+  paths.py                公開 / 土台   入出力フォルダとパスの解決
+  settings.py             公開 / 土台   OS 差分 / 例外の基底 / ロガー
+  _internal/
+    engine_process.py     TTSEngine / SubprocessEngine / create_engine
+    script.py             cast.toml と台本を読む
+```
+
+- **実行するなら `tts_service.py`**（合成・バッチ・台本）
+- **調べるだけなら `engine.py`**（一覧・対応機能・構築済みか）
+- **`core/_internal/` を `core` の外から import しない**。
+  呼んでよいのは `core/tts_service.py` だけ
+
+依存は上から下への一方向だけ。`settings.py` が最下層（`core` の中から
+何も import しない）、`tts_service.py` が最上層。各ファイルの docstring
+の冒頭に「呼ばれる先 / 呼ぶ先」を書くこと。
+
+### 書くときに守ること
+
 GUI からも CLI からも呼ぶので、次を守ります。
 
 - `print()` しない。進捗は `logging`（`settings.get_logger(__name__)`）
-- `sys.exit()` しない。失敗は `TTSToolkitError` を投げる
+- `sys.exit()` しない。失敗は `TTSToolkitError` を投げる。基底は
+  `settings.py`、個別の例外はその概念を定義したファイルに置く
+  （エンジン系は `engine.py`、`ScriptError` は `_internal/script.py`）
 - 長い処理は `on_progress` / `is_canceled` を受け取れるようにする
 - 既定値は dataclass に持たせ、CLI と GUI の両方がそれを唯一の出どころにする
 - パスは `str` で扱い、runner へ渡す前に絶対パスへ直す
@@ -82,17 +111,18 @@ GUI からも CLI からも呼ぶので、次を守ります。
 
 - `__init__.py` は置かない（暗黙の名前空間パッケージ）。再エクスポートは
   無いので、常に定義元のモジュールから import する
+- `core/_internal/` は `core` の外から import しない
 - `sys.path` をコードから変更しない。runner に渡す検索パスは
   `EngineSpec.python_path` として定義に書き、`SubprocessEngine` が
   `PYTHONPATH` として渡す
 - サブパッケージをまたぐ import は `ttstoolkit` から始まる絶対 import にする
 
-### 関数の中で import してよい 2 箇所
+### 関数の中で import してよい 1 箇所
 
-原則は先頭で import します。例外は次の 2 つだけで、どちらも理由を
-docstring に書いてあります。
+原則は先頭で import します。例外は次の 1 つだけで、理由を docstring に
+書いてあります。
 
-**1. runner の torch とモデルのライブラリ**
+**runner の torch とモデルのライブラリ**
 
 ```python
 from ttstoolkit.engine._shared.runner_base import EngineRunner, log, serve
@@ -108,11 +138,6 @@ class QwenRunner(EngineRunner):
 通信路を壊します。モジュール先頭に `import torch` を書くと、import の
 並べ替えで順序が崩れかねないので、関数の中に置いて順序に依存させません。
 
-**2. `core/interface.py` の `create_engine`**
-
-`SubprocessEngine` は同じファイルの `TTSEngine` を継承するので、先頭で
-import すると行きと帰りができてしまいます。
-
 ### core は runner_base を import しない
 
 `engine/_shared/` のうち、**親プロセス側が使ってよいのは `protocol.py`
@@ -124,13 +149,13 @@ import すると行きと帰りができてしまいます。
 
 | 知りたいこと | 読む順番 |
 |---|---|
-| 全体の流れ | `cli/__main__.py` → `cli/commands.py` → `core/interface.py` → `core/subprocess_engine.py` |
+| 全体の流れ | `cli/__main__.py` → `cli/commands.py` → `core/tts_service.py` → `core/_internal/engine_process.py` |
 | 親と runner の契約 | `engine/_shared/protocol.py`（ここが起点） |
-| エンジンの抽象 | `core/interface.py` |
+| エンジンの抽象 | `core/_internal/engine_process.py` |
 | runner の書き方 | `engine/_shared/runner_base.py` → `engine/chatterbox/runner.py`（最短） |
-| 親側の型 | `core/types.py` |
-| まとめて合成 | `core/jobs.py` |
-| 台本の文法 | `core/script.py` の docstring |
+| 親側の型 | `core/engine.py` |
+| まとめて合成 | `core/tts_service.py` |
+| 台本の文法 | `core/_internal/script.py` の docstring |
 | GUI | `gui/main_controller.py` → `main_view.py` → `main_model.py` |
 
 ## よくある変更
@@ -142,8 +167,8 @@ import すると行きと帰りができてしまいます。
 2. `engine/<name>/runner.py` に `EngineRunner` の実装を書く。
    `synthesize(request) -> SynthesisResponse` を埋めるだけ。
    最短の例は `engine/chatterbox/runner.py`（145 行）
-3. `definitions.py` の `EngineType` に 1 行足す
-4. `tool_config.py` の `ENGINE_DEFINITIONS` に定義を足す。
+3. `core/engine.py` の `EngineType` に 1 行足す
+4. `core/engine.py` の `ENGINE_DEFINITIONS` に定義を足す。
    `capabilities` は**実際に効くものだけ**を書く（効かないものを書くと
    黙って無視される不具合になる）
 5. `scripts/win/setup_engines.ps1` に構築手順を足す
@@ -155,20 +180,21 @@ import すると行きと帰りができてしまいます。
 
 1. `engine/_shared/protocol.py` の `SynthesisRequest` にフィールドを足し、
    `to_json()` / `from_json()` の両方を直す（片方だけだと静かに落ちる）
-2. 対応状況を表すなら `core/types.py` の `Capability` に 1 つ足す
-3. `core/interface.py` の `validate()` に未対応時のエラーを足す
+2. 対応状況を表すなら `core/engine.py` の `Capability` に 1 つ足す
+3. `core/_internal/engine_process.py` の `validate()` に未対応時の
+   エラーを足す
 4. 各 runner で `request.<新しい項目>` を読む
 5. `cli/__main__.py` の `_add_synth()` と、GUI の該当タブに入力欄を足す
 6. `tests/test_protocol.py` の往復テストに新しい項目を入れる
 
 ### 生成パラメータを調整する
 
-`tool_config.py` の `ENGINE_DEFINITIONS[...].options` を変える。
+`core/engine.py` の `ENGINE_DEFINITIONS[...].options` を変える。
 runner が `options.get(...)` で読むので、コードを直す必要はありません。
 
 ### 台本の文法を広げる
 
-`core/script.py` の `_LINE_OPTION_KEYS` / `_CAST_KEYS` に足し、
+`core/_internal/script.py` の `_LINE_OPTION_KEYS` / `_CAST_KEYS` に足し、
 `_parse_line_options()` と `Script.to_request()` で読む。
 `tests/test_script.py` にケースを足す。
 

@@ -20,13 +20,13 @@ import logging
 import sys
 
 from ttstoolkit.cli import commands
+from ttstoolkit.core.engine import engine_names
 from ttstoolkit.core.paths import OUTPUT_DIR
 from ttstoolkit.core.settings import (
     ROOT_LOGGER_NAME,
     SETUP_SCRIPT,
     TTSToolkitError,
 )
-from ttstoolkit.tool_config import engine_names
 
 logger = logging.getLogger(ROOT_LOGGER_NAME)
 

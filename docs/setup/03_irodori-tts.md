@@ -259,7 +259,8 @@ curl http://localhost:8088/v1/audio/speech \
 
 このリポジトリはサブプロセス方式を採っているため使っていないが、
 常駐サーバが欲しくなったときの有力な選択肢になる。`TTSEngine`
-（`python/ttstoolkit/core/interface.py`）を実装した HTTP バックエンドを足し、
+（`python/ttstoolkit/core/_internal/engine_process.py`）を実装した
+HTTP バックエンドを足し、
 `tool_config.py` に分岐を 1 つ増やせば、呼び出し側のコードを変えずに
 差し替えられる設計にしてある。
 

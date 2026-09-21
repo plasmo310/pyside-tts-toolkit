@@ -1,29 +1,16 @@
 """画面に並べる選択肢の定義。
 
+呼ばれる先: gui/widgets/
+呼ぶ先: なし
+
 値はそのまま処理モジュールに渡せる文字列にしてあるので、画面と処理側の
-あいだで変換を挟まない。エンジンの中身 (どのモデルをどの仮想環境で
-動かすか) は `tool_config.ENGINE_DEFINITIONS` にある。
+あいだで変換を挟まない。エンジンの選択肢 (`EngineType`) と中身
+(どのモデルをどの仮想環境で動かすか) は `core.engine` にある。
 """
 
 from __future__ import annotations
 
 from enum import Enum
-
-
-class EngineType(Enum):
-    """エンジンの選択肢。値は `ENGINE_DEFINITIONS` のキー。"""
-
-    QWEN = "qwen"
-    CHATTERBOX = "chatterbox"
-    IRODORI = "irodori"
-
-    @classmethod
-    def from_name(cls, name: str) -> EngineType | None:
-        """エンジン名から種別を返却する。該当が無ければ None。"""
-        for member in cls:
-            if member.value == name:
-                return member
-        return None
 
 
 class LanguageType(Enum):

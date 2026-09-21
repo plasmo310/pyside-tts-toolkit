@@ -14,9 +14,9 @@ import os
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from ttstoolkit.core.types import Capability
+from ttstoolkit.core.engine import Capability, available_engines
 from ttstoolkit.definitions import LanguageType
-from ttstoolkit.tool_config import ToolConfig, available_engines
+from ttstoolkit.tool_config import ToolConfig
 
 # 行の中身を縦中央に揃えるための指定
 _ALIGN_V_CENTER = QtCore.Qt.AlignmentFlag.AlignVCenter

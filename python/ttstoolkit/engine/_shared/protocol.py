@@ -15,7 +15,7 @@
     runner -> 親  {"id": 1, "ok": false, "error": "...", "traceback": "..."}
 
 封筒を組み立て／読み取りするのは `_shared/runner_base.py` の `serve()` と
-`core/subprocess_engine.py` の 2 箇所だけにしている。
+`core/_internal/engine_process.py` の 2 箇所だけにしている。
 
 **このモジュールは stdlib しか import しない。**とくに同じフォルダの
 `runner_base` を import してはいけない（あちらは import した時点で
@@ -143,7 +143,7 @@ class SynthesisResponse:
     """1 件の合成結果。runner -> 親。
 
     書き出したパスは親が指定したものなので返さない。親はこれに
-    `output_path` とエンジン名を足して `core.types.SynthesisResult` を
+    `output_path` とエンジン名を足して `core.engine.SynthesisResult` を
     組み立てる。
 
     Attributes:

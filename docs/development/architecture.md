@@ -18,7 +18,7 @@ python/
 | Irodori-TTS | GitHub clone のみ | `>=5.12.1,<6` | `>=2.10.0,<2.11.0` |
 
 extras で切り替える単一環境は成立しない。**プロセス分離が必須**で、
-それが `core/subprocess_engine.py` の存在理由になっている。
+それが `core/_internal/engine_process.py` の存在理由になっている。
 
 ### 2. Irodori-TTS は pip install できない
 
@@ -28,7 +28,7 @@ git 依存として取り込むと PyTorch が CPU 版になる。
 
 そのため上流リポジトリを `engine_env/irodori/vendor/` へ clone し、
 **そのリポジトリ自身の `uv sync` で環境を作る**。clone は非パッケージ扱いで
-仮想環境には入らないので、`tool_config.py` が clone の場所を runner の
+仮想環境には入らないので、`core/engine.py` が clone の場所を runner の
 検索パス（`EngineSpec.python_path`）に足している。
 
 ### 3. Blackwell (RTX 50 系 / sm_120) で動く必要がある
@@ -44,7 +44,7 @@ Chatterbox がピンする torch 2.6.0 には sm_120 カーネルが無い。
 ```
 ttstoolkit/
 ├─ main.py             ← GUI の起点。QApplication を作って Controller を起動
-├─ tool_config.py      ツールの設定、ENGINE_DEFINITIONS、名前からの引き当て
+├─ tool_config.py      GUI の見た目・保存先・リソースのパス
 ├─ definitions.py      画面に並べる選択肢の Enum
 ├─ logger.py           logging を Qt のシグナルへ中継
 │
@@ -54,13 +54,15 @@ ttstoolkit/
 │   └─ commands.py         各コマンドの処理
 ├─ gui/                Model / View / Controller と画面部品
 ├─ core/               CLI / GUI 共用の処理本体
-│   ├─ interface.py        ← TTSEngine (ABC) と create_engine
-│   ├─ types.py            Capability / EngineSpec / SynthesisResult / 例外
-│   ├─ subprocess_engine.py runner をサブプロセスで駆動する実装
-│   ├─ jobs.py             まとめて合成する処理と manifest（BatchItem 込み）
-│   ├─ script.py           キャスト定義と台本の解釈
-│   ├─ paths.py            入出力フォルダの解決
-│   └─ settings.py         OS 差分 / 例外 / ロガー / サブプロセスのフラグ
+│   ├─ tts_service.py      ← ルート。TTSService / JobOutcome / manifest
+│   ├─ engine.py           EngineType / Capability / EngineSpec /
+│   │                      SynthesisResult / 例外 / ENGINE_DEFINITIONS
+│   ├─ paths.py            入出力フォルダとパスの解決
+│   ├─ settings.py         OS 差分 / 例外の基底 / ロガー
+│   └─ _internal/          core の中からしか呼ばない部品
+│       ├─ engine_process.py TTSEngine (ABC) / SubprocessEngine /
+│       │                    create_engine
+│       └─ script.py         キャスト定義と台本の解釈
 │
 │  ── ここから下は .venvs/engine-* で動く ──
 └─ engine/
@@ -71,6 +73,44 @@ ttstoolkit/
     ├─ chatterbox/runner.py
     └─ irodori/runner.py
 ```
+
+## core の入口は 1 つ
+
+`core/` は**どれが外からの入口で、どれが中だけの部品か**をフォルダで
+分けている。
+
+| | 置き場 | 誰が呼ぶ |
+|---|---|---|
+| 公開 | `core/` 直下 | CLI / GUI |
+| 内部 | `core/_internal/` | `core/tts_service.py` だけ |
+
+> **`core/_internal/` を `core` の外から import しない。**
+> `__init__.py` を置かない方針なので再エクスポートで隠せない。
+> 代わりにフォルダ名で示す（`pip` の `pip/_internal/` と同じ）。
+
+読むときの入口は 2 つだけ。
+
+- **実行するなら `tts_service.py`** — 合成・バッチ・台本
+- **調べるだけなら `engine.py`** — 一覧・対応機能・構築済みか
+
+依存は上から下への一方向だけで、横も逆もない。
+
+```
+CLI / GUI
+   │
+   ├──→ core/tts_service.py ──┬──→ core/_internal/engine_process.py ──┐
+   │                          └──→ core/_internal/script.py ──────────┤
+   ├──→ core/engine.py ←──────────────────────────────────────────────┘
+   ├──→ core/paths.py   ←── engine.py
+   └──→ core/settings.py ←── paths.py
+```
+
+`settings.py` が最下層（`core` の中から何も import しない）、
+`tts_service.py` が最上層。`core` が `core` の外に持つ依存は
+`engine/_shared/protocol.py` だけ。
+
+各ファイルの docstring の冒頭に「呼ばれる先 / 呼ぶ先」を書いてあるので、
+開いた時点で前後関係が分かる。
 
 `engine_env/<name>/`（環境の定義）と `engine/<name>/`（コード）が同じ名前で
 並ぶので、片方を見ればもう片方の場所が分かる。
@@ -112,8 +152,9 @@ runner -> 親  {"id": 1, "ok": false, "error": "...", "traceback": "..."}
 親 -> runner  {"op": "shutdown"}
 ```
 
-封筒に触るのは `runner_base.serve()` と `core/subprocess_engine.py` の
-**2 箇所だけ**。キーの文字列も `protocol.py` の定数を参照する。
+封筒に触るのは `runner_base.serve()` と
+`core/_internal/engine_process.py` の**2 箇所だけ**。
+キーの文字列も `protocol.py` の定数を参照する。
 
 > **`core` は `_shared/runner_base.py` を import してはいけない。**
 > あのモジュールは import した時点で `sys.stdout` を `sys.stderr` に
@@ -125,7 +166,7 @@ runner -> 親  {"id": 1, "ok": false, "error": "...", "traceback": "..."}
 
 名前が似ているが役割が違う。
 
-| | `core/interface.py` | `engine/_shared/runner_base.py` |
+| | `core/_internal/engine_process.py` | `engine/_shared/runner_base.py` |
 |---|---|---|
 | 抽象 | `TTSEngine` | `EngineRunner` |
 | 動く場所 | 共通層（`.venvs/common`） | 各エンジンの仮想環境 |
@@ -137,13 +178,13 @@ runner -> 親  {"id": 1, "ok": false, "error": "...", "traceback": "..."}
 エンジンを 1 つ増やすときに書くのは後者だけで、`core` は触らない。
 
 ```python
-from ttstoolkit.core.interface import create_engine
+from ttstoolkit.core.tts_service import TTSService
 from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
-with create_engine("irodori") as engine:
-    result = engine.synthesize(
-        SynthesisRequest(text="こんにちは。", output_path="output/a.wav")
-    )
+result = TTSService().synthesize(
+    "irodori",
+    SynthesisRequest(text="こんにちは。", output_path="output/a.wav"),
+)
 ```
 
 ## 壊れやすい箇所と対策
@@ -238,7 +279,7 @@ Run 押下
 
 合成は `TaskRunner` (QThread) で回します。生成中の 1 件を途中で止める手段は
 どのモデルにも無いので、キャンセルは**次の 1 件に入る前**に効く協調式です
-(`core/jobs.py` が `is_canceled()` をループの先頭で見ている)。
+(`core/tts_service.py` が `is_canceled()` をループの先頭で見ている)。
 
 ## import のルール
 
@@ -249,7 +290,7 @@ Run 押下
 
 | 場所 | 書き方 |
 | --- | --- |
-| どこからでも | 絶対 (`from ttstoolkit.core.jobs import run_script`) |
+| どこからでも | 絶対 (`from ttstoolkit.core.tts_service import TTSService`) |
 | runner が契約を使う | 絶対 (`from ttstoolkit.engine._shared.protocol import ...`) |
 
 `__init__.py` は置きません（暗黙の名前空間パッケージ）。そのため
@@ -257,12 +298,11 @@ Run 押下
 常に定義元のモジュールから import します。`python -m ttstoolkit.cli` は
 名前空間パッケージの中の `__main__.py` として解決されるので、これでも動きます。
 
-関数の中で import しているのは 2 箇所だけで、どちらも理由があります。
+関数の中で import しているのは 1 箇所だけです。
 
 | 場所 | 理由 |
 |---|---|
 | runner の `import torch` | `runner_base` より先に読み込まれると stdout の退避が間に合わない |
-| `create_engine` の `SubprocessEngine` | あちらが `TTSEngine` を継承するので、先頭で import すると循環する |
 
 ## 見た目
 
@@ -291,9 +331,9 @@ Run 押下
 
 | したいこと | 触る場所 |
 |---|---|
-| エンジンを 1 つ足す | `engine_env/<name>/`、`engine/<name>/runner.py`、`tool_config.ENGINE_DEFINITIONS` |
-| 共通 IF に項目を足す | `engine/_shared/protocol.py` → `core/interface.py` の `validate()` → 各 runner |
-| HTTP バックエンドを足す | `core/interface.py` の `TTSEngine` を実装し、`create_engine` に分岐を 1 つ |
+| エンジンを 1 つ足す | `engine_env/<name>/`、`engine/<name>/runner.py`、`core/engine.py` の `EngineType` と `ENGINE_DEFINITIONS` |
+| 共通 IF に項目を足す | `engine/_shared/protocol.py` → `core/_internal/engine_process.py` の `validate()` → 各 runner |
+| HTTP バックエンドを足す | `core/_internal/engine_process.py` の `TTSEngine` を実装し、`create_engine` に分岐を 1 つ |
 | CLI にコマンドを足す | `cli/commands.py` に処理、`cli/__main__.py` にサブパーサ |
 | GUI にタブを足す | `gui/widgets/<name>_tab.py` → `main_view` / `main_model` / `main_controller` |
 

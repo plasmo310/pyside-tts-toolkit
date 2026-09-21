@@ -12,8 +12,9 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
+from ttstoolkit.core.engine import EngineType
 from ttstoolkit.core.paths import OUTPUT_DIR, VOICES_DIR
-from ttstoolkit.definitions import EngineType, VoiceSourceType
+from ttstoolkit.definitions import VoiceSourceType
 from ttstoolkit.gui.widgets.option_rows import (
     DirPathRow,
     EngineOptionsGroup,

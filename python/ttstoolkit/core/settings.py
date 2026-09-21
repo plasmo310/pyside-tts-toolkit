@@ -1,6 +1,10 @@
 """実行環境まわり: OS 差分・例外・ロガー。
 
 音声合成とも台本の解釈とも無関係な、プロジェクト全体の土台。
+`core` の最下層で、ここは何も import しない。
+
+呼ばれる先: cli/, gui/, logger.py, core の全部
+呼ぶ先: なし
 
 Attributes:
     IS_WINDOWS (bool): Windows で動いているか。

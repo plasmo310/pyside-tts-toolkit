@@ -2,6 +2,9 @@
 
 音声合成とは無関係な「このリポジトリのフォルダ構成」だけを扱う。
 
+呼ばれる先: cli/, gui/, core の全部
+呼ぶ先: core.settings
+
     <ルート>/python/ttstoolkit/core/  ... このファイルの置き場所
     <ルート>/input/voices/   ... 参照音声 (オリジナルボイスの素材)
     <ルート>/input/script/   ... キャスト定義と台本
@@ -28,9 +31,10 @@ Attributes:
 
 from __future__ import annotations
 
+import hashlib
 import os
 
-from ttstoolkit.core.settings import IS_WINDOWS
+from ttstoolkit.core.settings import IS_WINDOWS, TTSToolkitError
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 PACKAGE_DIR = os.path.dirname(CORE_DIR)
@@ -76,6 +80,71 @@ def resolve_input(path: str, default_dir: str | None = None) -> str:
         if os.path.isfile(candidate):
             return candidate
     return path
+
+
+def resolve_existing(path: str, default_dir: str, missing_message: str) -> str:
+    """入力パスを解決し、実在することを確かめる。
+
+    `resolve_input()` との違いは、見つからなければ例外にすること。
+    CLI も GUI も「解決して、無ければエラー」を同じ形で使うので
+    ここに 1 つだけ置く。
+
+    Args:
+        path: 利用者が指定したパス。
+        default_dir: 見つからないときに最後に探す既定の置き場。
+        missing_message: 見つからないときの文言。末尾にパスが付く。
+
+    Returns:
+        str: 実在が確認できたパス。
+
+    Raises:
+        TTSToolkitError: どこにも見つからないとき。
+    """
+    resolved = resolve_input(path, default_dir)
+    if not os.path.isfile(resolved):
+        raise TTSToolkitError(f"{missing_message}: {resolved}")
+    return resolved
+
+
+def resolve_output(output_dir: str, output_name: str | None) -> str | None:
+    """書き出し先のパスを決める。
+
+    ファイル名が絶対パスならそのまま、相対パスなら `output_dir` から
+    たどる。ファイル名が未指定なら None を返すので、呼び出し側が
+    `default_output_path()` などの既定値を当てる。
+
+    Args:
+        output_dir: 書き出し先ディレクトリ。
+        output_name: 書き出すファイル名。空や None なら None を返す。
+
+    Returns:
+        str | None: 書き出す wav のパス。ファイル名が無ければ None。
+
+    Raises:
+        TTSToolkitError: 書き出し先ディレクトリが未指定のとき。
+    """
+    if not output_dir:
+        raise TTSToolkitError("Select an output directory")
+    if not output_name:
+        return None
+    if os.path.isabs(output_name):
+        return output_name
+    return os.path.join(output_dir, output_name)
+
+
+def default_output_path(engine: str, text: str, output_dir: str) -> str:
+    """テキストから決まるファイル名を作る (再生成時の取り違え防止)。
+
+    Args:
+        engine: エンジン名。
+        text: 読み上げるテキスト。
+        output_dir: 書き出し先ディレクトリ。
+
+    Returns:
+        str: 書き出す wav のパス。
+    """
+    digest = hashlib.sha256(f"{engine}\n{text}".encode()).hexdigest()[:12]
+    return os.path.join(output_dir, f"{engine}-{digest}.wav")
 
 
 def venv_python(venv_name: str) -> str:

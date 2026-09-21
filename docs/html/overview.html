@@ -979,19 +979,19 @@ wrote D:\...\output\hello.wav
     <h3>Python から呼ぶ</h3>
     <div class="cmd">
       <div class="head">Python</div>
-<pre><span class="f">from</span> ttstoolkit.core.interface <span class="f">import</span> create_engine
+<pre><span class="f">from</span> ttstoolkit.core.tts_service <span class="f">import</span> TTSService
 <span class="f">from</span> ttstoolkit.engine._shared.protocol <span class="f">import</span> SynthesisRequest
 
-<span class="f">with</span> create_engine(<span class="s">"irodori"</span>) <span class="f">as</span> engine:
-    result = engine.synthesize(
-        SynthesisRequest(
-            text=<span class="s">"こんにちは。"</span>,
-            output_path=<span class="s">"output/hello.wav"</span>,
-            language=<span class="s">"ja"</span>,
-            seed=42,
-        )
-    )
-    print(result.sample_rate, result.duration_sec)</pre>
+result = TTSService().synthesize(
+    <span class="s">"irodori"</span>,
+    SynthesisRequest(
+        text=<span class="s">"こんにちは。"</span>,
+        output_path=<span class="s">"output/hello.wav"</span>,
+        language=<span class="s">"ja"</span>,
+        seed=42,
+    ),
+)
+print(result.sample_rate, result.duration_sec)</pre>
     </div>
     <p>
       <code>with</code> を抜けるまでモデルは常駐する。複数件を投げるなら 1 つの
@@ -1332,11 +1332,11 @@ manifest.json
 
     <h3>設定を変える</h3>
     <p>
-      <code>python/ttstoolkit/tool_config.py</code> にエンジンごとの設定がある。
+      <code>python/ttstoolkit/core/engine.py</code> にエンジンごとの設定がある。
       仮想環境を作り直す必要はなく、編集すれば次の実行から反映される。
     </p>
     <div class="cmd">
-      <div class="head">python/ttstoolkit/tool_config.py（抜粋）</div>
+      <div class="head">python/ttstoolkit/core/engine.py（抜粋）</div>
 <pre>ENGINE_DEFINITIONS = {
     <span class="s">"qwen"</span>: EngineSpec(
         ...
@@ -1442,7 +1442,7 @@ manifest.json
 pyproject.toml                   <span class="cm">共通層・GUI の依存と ruff の設定</span>
 python/ttstoolkit/               <span class="cm">ツール本体</span>
   main.py                        <span class="cm">GUI の起点</span>
-  tool_config.py                 <span class="cm">ツール設定とエンジン定義</span>
+  tool_config.py                 <span class="cm">GUI の見た目・保存先・リソースのパス</span>
   definitions.py                 <span class="cm">画面に並べる選択肢の Enum</span>
   logger.py                      <span class="cm">logging を Qt のシグナルへ中継</span>
   cli/                           <span class="cm">単一入口。python -m ttstoolkit.cli &lt;command&gt;</span>
@@ -1452,12 +1452,12 @@ python/ttstoolkit/               <span class="cm">ツール本体</span>
     main_model.py main_view.py main_controller.py
     widgets/                     <span class="cm">入力行と 3 つのタブ</span>
   core/                          <span class="cm">CLI / GUI 共用の処理本体（親プロセス側）</span>
-    interface.py                 <span class="cm">TTSEngine 抽象 + create_engine。対応外の検証もここ</span>
-    types.py                     <span class="cm">Capability / EngineSpec / SynthesisResult / 例外</span>
-    subprocess_engine.py         <span class="cm">runner を常駐させ JSON で駆動する</span>
-    jobs.py                      <span class="cm">まとめて合成する処理と manifest</span>
-    script.py                    <span class="cm">cast.toml と台本テキストの読み込み</span>
+    tts_service.py               <span class="cm">ルート。合成・バッチ・台本はここに頼む</span>
+    engine.py                    <span class="cm">エンジンの定義・対応機能・引き当て。ENGINE_DEFINITIONS</span>
     paths.py settings.py         <span class="cm">入出力フォルダ / OS 差分・例外・ロガー</span>
+    _internal/                   <span class="cm">core の中からしか呼ばない部品</span>
+      engine_process.py          <span class="cm">TTSEngine 抽象 + runner の常駐駆動 + create_engine</span>
+      script.py                  <span class="cm">cast.toml と台本テキストの読み込み</span>
   engine/                        <span class="cm">別の仮想環境で動く runner</span>
     _shared/protocol.py          <span class="cm">両側が守る契約。Request / Response</span>
     _shared/runner_base.py       <span class="cm">EngineRunner 抽象と JSONL のループ</span>
@@ -1561,7 +1561,7 @@ docs/                            <span class="cm">setup / cli / gui / guide / de
           </tr>
           <tr>
             <td>VRAM が足りない（OOM）</td>
-            <td><code>tool_config.py</code> の Qwen のモデル ID を <code>0.6B</code> 版に変える。
+            <td><code>core/engine.py</code> の Qwen のモデル ID を <code>0.6B</code> 版に変える。
                 複数エンジンを同時に動かさない。</td>
           </tr>
           <tr>

@@ -1,5 +1,8 @@
 """キャラクター台本の読み込み。
 
+呼ばれる先: core.tts_service のみ (`core` の外からは import しない)
+呼ぶ先: core.settings, engine._shared.protocol
+
 台本は 2 つのファイルに分ける。
 
     cast.toml     キャラクターの声の定義。一度書けば使い回す。

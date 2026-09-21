@@ -6,7 +6,7 @@
 Irodori は PyPI 未公開 (依存の dacvae も PyPI に無い) ため、上流
 リポジトリを `engine_env/irodori/vendor/Irodori-TTS` へ clone し、その
 リポジトリ自身の仮想環境を使う。clone は非パッケージ扱いで仮想環境には
-入らないので、`tool_config` が clone の場所を検索パス
+入らないので、`core.engine` が clone の場所を検索パス
 (`EngineSpec.python_path`) に足している。
 
 付属の infer.py を毎回叩くとリクエストごとにモデルをロードし直すので、
