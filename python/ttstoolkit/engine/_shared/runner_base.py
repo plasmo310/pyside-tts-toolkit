@@ -2,7 +2,7 @@
 
 runner はエンジンごとの仮想環境で動く小さなプログラムで、モデルを
 ロードしたまま常駐し、標準入出力の JSONL で合成を受け付ける。
-プロトコルの説明は `engine/subprocess_engine.py` にある。
+やり取りする中身は `protocol.py` が定義している。
 
 3 つの runner はこの `EngineRunner` を実装する。`serve()` に渡せば
 通信・エラー処理・終了はすべてここが引き受けるので、各 runner は
@@ -14,6 +14,10 @@ huggingface_hub / tqdm がうっかり stdout に出しても JSONL が壊れな
 ようにするための措置で、**torch より先に import する**必要がある。
 そのため各 runner は torch やモデルのライブラリを関数の中で import
 している (モジュールの先頭で import すると並べ替えで順序が崩れる)。
+
+同じ理由で、**親プロセス側 (`ttstoolkit.core`) はこのモジュールを
+import してはいけない**。標準出力が差し替わって CLI の表示が壊れる。
+親が使ってよいのは `protocol.py` だけ。
 """
 
 from __future__ import annotations
@@ -27,6 +31,21 @@ import traceback
 import wave
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+
+from ttstoolkit.engine._shared.protocol import (
+    KEY_ERROR,
+    KEY_ID,
+    KEY_MODEL_ID,
+    KEY_OK,
+    KEY_TRACEBACK,
+    OP,
+    OP_FATAL,
+    OP_READY,
+    OP_SHUTDOWN,
+    OP_SYNTHESIZE,
+    SynthesisRequest,
+    SynthesisResponse,
+)
 
 # 本物の stdout を退避し、以後 print() は stderr へ流す
 _CHANNEL = sys.stdout
@@ -54,17 +73,15 @@ class EngineRunner(ABC):
         """ロードしたモデルの識別子。起動時に親へ申告する。"""
 
     @abstractmethod
-    def synthesize(self, message: dict) -> dict:
+    def synthesize(self, request: SynthesisRequest) -> SynthesisResponse:
         """1 件を合成して wav を書き出す。
 
         Args:
-            message: 親から届いたリクエスト。`text` と `output_path` は
-                必ず入っている。
+            request: 親から届いたリクエスト。`output_path` は絶対パス。
 
         Returns:
-            dict: `sample_rate` / `duration_sec` / `elapsed_sec` を含む
-                辞書。実際に使ったモデルが既定と違うときは `model_id`
-                も入れる。
+            SynthesisResponse: サンプリングレート・長さ・所要時間。
+                実際に使ったモデルが `model_id` と違うときはそれも入れる。
         """
 
 
@@ -165,6 +182,9 @@ def write_wav_pcm16(path: str, samples: object, sample_rate: int) -> int:
 def serve(build_runner: Callable[[dict], EngineRunner]) -> int:
     """runner を組み立てて JSONL のループを回す。
 
+    封筒 (op / id / ok) を読み書きするのはこの関数だけ。中身の出し入れは
+    `SynthesisRequest.from_json()` と `SynthesisResponse.to_json()` に任せる。
+
     Args:
         build_runner: 設定を受け取って `EngineRunner` を返す関数。
             実装クラスそのものを渡せばよい。
@@ -178,10 +198,10 @@ def serve(build_runner: Callable[[dict], EngineRunner]) -> int:
         runner = build_runner(options)
     except Exception as e:  # noqa: BLE001 - 起動失敗も親へ伝える
         log(traceback.format_exc())
-        send({"op": "fatal", "error": str(e)})
+        send({OP: OP_FATAL, KEY_ERROR: str(e)})
         return 1
 
-    send({"op": "ready", "model_id": runner.model_id})
+    send({OP: OP_READY, KEY_MODEL_ID: runner.model_id})
 
     for raw_line in sys.stdin:
         line = raw_line.strip()
@@ -193,16 +213,16 @@ def serve(build_runner: Callable[[dict], EngineRunner]) -> int:
             log(f"Ignoring a non-JSON line: {line[:200]!r}")
             continue
 
-        operation = message.get("op")
-        if operation == "shutdown":
+        operation = message.get(OP)
+        if operation == OP_SHUTDOWN:
             log("Received shutdown")
             return 0
-        if operation != "synthesize":
+        if operation != OP_SYNTHESIZE:
             send(
                 {
-                    "id": message.get("id"),
-                    "ok": False,
-                    "error": f"Unknown op: {operation}",
+                    KEY_ID: message.get(KEY_ID),
+                    KEY_OK: False,
+                    KEY_ERROR: f"Unknown op: {operation}",
                 }
             )
             continue
@@ -215,22 +235,23 @@ def _handle_synthesize(runner: EngineRunner, message: dict) -> None:
     """1 件の合成リクエストを処理して結果を返す。
 
     1 件の失敗で常駐を止めないよう、例外はここで捕まえて親へ返す。
+    リクエストの復元そのものが失敗した場合も同じ扱いにする。
 
     Args:
         runner: 合成を行う runner。
-        message: 親から届いたリクエスト。
+        message: 親から届いた 1 行ぶんの辞書。
     """
     try:
-        result = runner.synthesize(message)
+        response = runner.synthesize(SynthesisRequest.from_json(message))
     except Exception as e:  # noqa: BLE001 - 1 件の失敗で常駐を止めない
         log(traceback.format_exc())
         send(
             {
-                "id": message.get("id"),
-                "ok": False,
-                "error": str(e),
-                "traceback": traceback.format_exc(),
+                KEY_ID: message.get(KEY_ID),
+                KEY_OK: False,
+                KEY_ERROR: str(e),
+                KEY_TRACEBACK: traceback.format_exc(),
             }
         )
     else:
-        send({"id": message["id"], "ok": True, **result})
+        send({KEY_ID: message[KEY_ID], KEY_OK: True, **response.to_json()})

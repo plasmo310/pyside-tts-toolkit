@@ -17,13 +17,11 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from ttstoolkit.engine.registry import create_engine
-from ttstoolkit.engine.script import Script, ScriptLine
-from ttstoolkit.engine.settings import TTSToolkitError, get_logger
-from ttstoolkit.engine.types import (
-    BatchItem,
-    SynthesisResult,
-)
+from ttstoolkit.core.interface import create_engine
+from ttstoolkit.core.script import Script, ScriptLine
+from ttstoolkit.core.settings import TTSToolkitError, get_logger
+from ttstoolkit.core.types import SynthesisResult
+from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
 _logger = get_logger(__name__)
 
@@ -38,8 +36,82 @@ ProgressFunc = Callable[[str], None]
 CancelFunc = Callable[[], bool]
 
 
-class JobCanceledError(TTSToolkitError):
-    """利用者が途中で止めた。"""
+@dataclass(frozen=True)
+class BatchItem:
+    """バッチ入力 JSON の 1 要素。
+
+    Attributes:
+        id: 出力ファイル名に使う識別子。
+        text: 読み上げるテキスト。
+        language: 言語コード。
+        reference_audio: 参照音声のパス。
+        reference_text: 参照音声の書き起こし。
+        voice_design: 文章による声の指定。
+        seed: 乱数シード。
+        speed: 話速。
+    """
+
+    id: str
+    text: str
+    language: str | None = None
+    reference_audio: str | None = None
+    reference_text: str | None = None
+    voice_design: str | None = None
+    seed: int | None = None
+    speed: float = 1.0
+
+    @classmethod
+    def from_dict(cls, data: dict, index: int, base_dir: str) -> BatchItem:
+        """JSON の 1 要素から作る。
+
+        Args:
+            data: JSON の 1 要素。
+            index: 配列中の位置。エラーメッセージと既定 id に使う。
+            base_dir: 参照音声の相対パスを解決する基準。
+
+        Returns:
+            BatchItem: 変換した 1 要素。
+
+        Raises:
+            ValueError: text が無いとき。
+        """
+        if "text" not in data:
+            raise ValueError(f"Batch item {index} has no text")
+        reference = data.get("reference_audio")
+        return cls(
+            id=str(data.get("id", f"item-{index:04d}")),
+            text=str(data["text"]),
+            language=data.get("language"),
+            reference_audio=(
+                os.path.abspath(os.path.join(base_dir, reference))
+                if reference
+                else None
+            ),
+            reference_text=data.get("reference_text"),
+            voice_design=data.get("voice_design"),
+            seed=data.get("seed"),
+            speed=float(data.get("speed", 1.0)),
+        )
+
+    def to_request(self, output_path: str) -> SynthesisRequest:
+        """書き出し先を決めて合成リクエストにする。
+
+        Args:
+            output_path: 書き出す wav のパス。
+
+        Returns:
+            SynthesisRequest: 合成リクエスト。
+        """
+        return SynthesisRequest(
+            text=self.text,
+            output_path=output_path,
+            language=self.language,
+            reference_audio=self.reference_audio,
+            reference_text=self.reference_text,
+            voice_design=self.voice_design,
+            seed=self.seed,
+            speed=self.speed,
+        )
 
 
 @dataclass

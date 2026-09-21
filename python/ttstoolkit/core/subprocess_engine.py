@@ -5,16 +5,14 @@
 モデルをロードしたまま常駐するので、バッチ処理でロード時間 (10〜60 秒)
 を毎回払わずに済む。
 
-プロトコル (1 行 1 JSON、UTF-8):
-
-    runner -> 親  {"op": "ready", "model_id": "..."}
-    親 -> runner  {"op": "synthesize", "id": 1, "text": ..., ...}
-    runner -> 親  {"id": 1, "ok": true, "sample_rate": 48000, ...}
-    runner -> 親  {"id": 1, "ok": false, "error": "...", ...}
-    親 -> runner  {"op": "shutdown"}
+やり取りする中身は `ttstoolkit.engine._shared.protocol` が定義している。
+封筒 (op / id / ok) を組み立てるのは、runner 側の `serve()` と
+このモジュールの 2 箇所だけ。
 
 runner 側はモデルのログで stdout を汚さないこと (ログは全て stderr へ)。
-その仕掛けは `runners/interface.py` にある。
+その仕掛けは `engine/_shared/runner_base.py` にある。**このモジュールは
+そちらを import してはいけない** (import した時点で自分の標準出力まで
+差し替わってしまう)。
 """
 
 from __future__ import annotations
@@ -27,14 +25,31 @@ import threading
 import time
 from collections import deque
 
-from ttstoolkit.engine.interface import TTSEngine
-from ttstoolkit.engine.settings import SETUP_SCRIPT, get_logger
-from ttstoolkit.engine.types import (
+from ttstoolkit.core.interface import TTSEngine
+from ttstoolkit.core.settings import (
+    SETUP_SCRIPT,
+    SUBPROCESS_FLAGS,
+    get_logger,
+)
+from ttstoolkit.core.types import (
     EngineNotInstalledError,
     EngineProcessError,
     EngineSpec,
-    SynthesisRequest,
     SynthesisResult,
+)
+from ttstoolkit.engine._shared.protocol import (
+    KEY_ERROR,
+    KEY_ID,
+    KEY_MODEL_ID,
+    KEY_OK,
+    KEY_TRACEBACK,
+    OP,
+    OP_LOG,
+    OP_READY,
+    OP_SHUTDOWN,
+    OP_SYNTHESIZE,
+    SynthesisRequest,
+    SynthesisResponse,
 )
 
 _logger = get_logger(__name__)
@@ -115,6 +130,8 @@ class SubprocessEngine(TTSEngine):
                 encoding="utf-8",
                 errors="replace",
                 bufsize=1,
+                # GUI から起動したときにコンソール窓を出さない
+                creationflags=SUBPROCESS_FLAGS,
             )
         except OSError as e:
             raise EngineProcessError(
@@ -177,9 +194,9 @@ class SubprocessEngine(TTSEngine):
         deadline = time.monotonic() + _READY_TIMEOUT_SEC
         while True:
             message = self.__read_message(deadline, "startup")
-            if message.get("op") == "ready":
+            if message.get(OP) == OP_READY:
                 self.__ready_model_id = (
-                    message.get("model_id") or self.spec.model_id
+                    message.get(KEY_MODEL_ID) or self.spec.model_id
                 )
                 _logger.info(
                     "Engine %s is ready (%s)",
@@ -187,7 +204,7 @@ class SubprocessEngine(TTSEngine):
                     self.__ready_model_id,
                 )
                 return
-            if message.get("op") == "log":
+            if message.get(OP) == OP_LOG:
                 continue
             raise EngineProcessError(
                 f"Unexpected response before ready: {message}"
@@ -214,28 +231,27 @@ class SubprocessEngine(TTSEngine):
 
         self.__next_id += 1
         request_id = self.__next_id
-        started = time.monotonic()
         self.__write_message(
-            {"op": "synthesize", "id": request_id, **request.to_payload()}
+            {OP: OP_SYNTHESIZE, KEY_ID: request_id, **request.to_json()}
         )
 
         deadline = time.monotonic() + _SYNTH_TIMEOUT_SEC
         while True:
             message = self.__read_message(deadline, "synthesis")
-            if message.get("op") == "log":
+            if message.get(OP) == OP_LOG:
                 continue
-            if message.get("id") != request_id:
-                actual = message.get("id")
+            if message.get(KEY_ID) != request_id:
+                actual = message.get(KEY_ID)
                 raise EngineProcessError(
                     f"Response id mismatch (expected {request_id}, "
                     f"got {actual})"
                 )
             break
 
-        if not message.get("ok"):
+        if not message.get(KEY_OK):
             detail = (
-                message.get("traceback")
-                or message.get("error")
+                message.get(KEY_TRACEBACK)
+                or message.get(KEY_ERROR)
                 or "(no detail)"
             )
             raise EngineProcessError(
@@ -248,21 +264,26 @@ class SubprocessEngine(TTSEngine):
                 f"{request.output_path}"
             )
 
+        try:
+            response = SynthesisResponse.from_json(message)
+        except ValueError as e:
+            raise EngineProcessError(
+                f"Engine {self.spec.name} returned a broken response: {e}"
+            ) from e
+
         return SynthesisResult(
             output_path=request.output_path,
-            sample_rate=int(message["sample_rate"]),
-            duration_sec=float(message["duration_sec"]),
+            sample_rate=response.sample_rate,
+            duration_sec=response.duration_sec,
             engine=self.spec.name,
             # Qwen のようにリクエスト内容でモデルを切り替えるエンジンは、
             # 応答で実際に使ったモデルを返す。無ければ起動時の申告を使う。
             model_id=(
-                message.get("model_id")
+                response.model_id
                 or self.__ready_model_id
                 or self.spec.model_id
             ),
-            elapsed_sec=float(
-                message.get("elapsed_sec", time.monotonic() - started)
-            ),
+            elapsed_sec=response.elapsed_sec,
         )
 
     # ------------------------------------------------------------------
@@ -388,7 +409,7 @@ class SubprocessEngine(TTSEngine):
         try:
             if process.poll() is None and process.stdin is not None:
                 with contextlib.suppress(BrokenPipeError, ValueError, OSError):
-                    process.stdin.write(json.dumps({"op": "shutdown"}) + "\n")
+                    process.stdin.write(json.dumps({OP: OP_SHUTDOWN}) + "\n")
                     process.stdin.flush()
                     process.stdin.close()
             try:

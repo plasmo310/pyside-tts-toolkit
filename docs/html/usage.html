@@ -372,17 +372,14 @@
     <h2>準備 <span class="tag">最初に一度</span></h2>
     <p>
       コマンドはすべて<b>リポジトリのルート</b>で実行する。
-      パスが長いので、サブコマンド名を受け取る関数を作っておく
+      パスが長いので、関数を 1 つ作っておく
       （<code>Set-Alias</code> は引数を渡せないので関数にする）。
     </p>
 
     <div class="cmd">
       <div class="label">PowerShell（このシェルの間だけ有効）</div>
 <pre><span class="p">&gt; </span>cd python-tts-sample
-<span class="p">&gt; </span><span class="f">function</span> tts {
-<span class="p">&gt;&gt; </span>    $exe = <span class="s">"$PWD\.venvs\common\Scripts\python.exe"</span>
-<span class="p">&gt;&gt; </span>    &amp; $exe -m <span class="s">"ttstoolkit.cli.$($args[0])"</span> @($args | Select-Object -Skip 1)
-<span class="p">&gt;&gt; </span>}</pre>
+<span class="p">&gt; </span><span class="f">function</span> tts { &amp; <span class="s">"$PWD\.venvs\common\Scripts\python.exe"</span> -m ttstoolkit.cli @args }</pre>
     </div>
 
     <p>環境が正しいか確認する。<code>CUDA ok</code> が 3 つ出れば準備完了。</p>

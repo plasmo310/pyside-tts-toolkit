@@ -26,7 +26,7 @@
 
 | ファイル | 内容 |
 |---|---|
-| [cli/common_options.md](cli/common_options.md) | 共通の引数、パスの解決、終了コード |
+| [cli/common_options.md](cli/common_options.md) | 呼び方、共通の引数、パスの解決、終了コード |
 | [cli/synth.md](cli/synth.md) | テキストを 1 件合成する |
 | [cli/batch.md](cli/batch.md) | JSON をまとめて合成する |
 | [cli/script.md](cli/script.md) | キャラクター台本からまとめて合成する |

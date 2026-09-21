@@ -95,7 +95,7 @@ cd ..\..\..\..
 ### 5. 動作確認
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "こんにちは。" -l ja -O ir.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori -t "こんにちは。" -l ja -O ir.wav
 ```
 
 初回はチェックポイント（v4.1 Small、約 0.8B）とコーデック
@@ -106,7 +106,7 @@ cd ..\..\..\..
 参照音声を渡すだけ。書き起こしは不要。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori `
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori `
     -t "参照音声からクローンした声で話しています。" -l ja `
     -r alice.wav -O ir_clone.wav
 ```
@@ -124,8 +124,8 @@ cd ..\..\..\..
 3 エンジンのうち Irodori だけが `--speed` に対応している。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "テスト" -l ja --speed 0.8 -O slow.wav
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "テスト" -l ja --speed 1.3 -O fast.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori -t "テスト" -l ja --speed 0.8 -O slow.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori -t "テスト" -l ja --speed 1.3 -O fast.wav
 ```
 
 内部では Irodori の `duration_scale` に逆数を渡している（`duration_scale` は
@@ -183,7 +183,7 @@ Qwen と違い、Irodori は**参照音声と併用できる**。その場合は
 本文に絵文字を入れると、笑い・ため息・咳などを表現する。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori `
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori `
     -t "あははっ🤭、それ本当に言ってるの？…😮‍💨まぁ、君らしいけどね。" `
     -l ja -O emotion.wav
 ```
@@ -213,10 +213,10 @@ Irodori は**英語を生成できない**。`-l en` を渡すと共通層で
 
 ```powershell
 # 日本語（Irodori）
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "こんにちは。" -l ja -O ja.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori -t "こんにちは。" -l ja -O ja.wav
 
 # 英語（マスター音声をクローンして Qwen で）
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e qwen -t "Hello." -l en `
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e qwen -t "Hello." -l en `
     -r master.wav --reference-text "マスター音声の書き起こし" -O en.wav
 ```
 
@@ -259,8 +259,8 @@ curl http://localhost:8088/v1/audio/speech \
 
 このリポジトリはサブプロセス方式を採っているため使っていないが、
 常駐サーバが欲しくなったときの有力な選択肢になる。`TTSEngine`
-（`python/ttstoolkit/engine/interface.py`）を実装した HTTP バックエンドを足し、
-`registry.py` に分岐を 1 つ増やせば、呼び出し側のコードを変えずに
+（`python/ttstoolkit/core/interface.py`）を実装した HTTP バックエンドを足し、
+`tool_config.py` に分岐を 1 つ増やせば、呼び出し側のコードを変えずに
 差し替えられる設計にしてある。
 
 ## ライセンス

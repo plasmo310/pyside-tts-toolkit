@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from ttstoolkit.engine.script import (
+from ttstoolkit.core.script import (
     ScriptError,
     load_script,
     parse_cast,

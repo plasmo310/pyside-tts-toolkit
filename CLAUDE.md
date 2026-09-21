@@ -18,10 +18,11 @@ TTS Toolkit — Qwen3-TTS / Chatterbox / Irodori-TTS の 3 つをローカルで
 
 ```
 python/ttstoolkit/  GUI・CLI・処理本体をまとめたパッケージ
-  cli/              コマンドラインの入口（1 コマンド 1 ファイル）
+  cli/              単一入口。python -m ttstoolkit.cli <command>
   gui/              PySide6 の MVC
-  engine/           CLI / GUI 共用の処理本体
-    runners/        各モデルの仮想環境で動く小さなプログラム
+  core/             CLI / GUI 共用の処理本体（親プロセス側）
+  engine/           別の仮想環境で動く runner
+    _shared/        両側が守る契約（protocol）と runner の土台
 engine_env/         各エンジンの仮想環境を作るための定義
 .venvs/             仮想環境の実体（common と engine-*）
 resources/          stylesheet.qss（色とサイズは全部ここ）
@@ -43,16 +44,17 @@ REM テスト（モデル不要）
 .\.venvs\common\Scripts\python.exe -m pytest -q
 
 REM CLI
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "こんにちは。"
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.doctor
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori -t "こんにちは。"
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli doctor
 ```
 
 ## 気をつけること
 
-- `python/ttstoolkit/engine` の約束（`print` しない / `sys.exit` しない / 失敗は
+- `python/ttstoolkit/core` の約束（`print` しない / `sys.exit` しない / 失敗は
   `TTSToolkitError`）を壊さない
 - runner は torch を**関数の中で** import する。
-  `runners/interface.py` より先に読み込まれると stdout の退避が間に合わない
+  `engine/_shared/runner_base.py` より先に読み込まれると stdout の退避が
+  間に合わない。**core からあのファイルを import しない**（標準出力が壊れる）
 - `sys.path` をコードから変更しない。runner の検索パスは
   `EngineSpec.python_path` に書く
 - 色・サイズは `resources/ui/stylesheet.qss` に置く。Python 側にハードコードしない

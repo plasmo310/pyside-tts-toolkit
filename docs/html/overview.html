@@ -678,6 +678,8 @@
       そこで共通層はモデルを直接読み込まず、エンジンごとの仮想環境にある
       <code>runner.py</code> をサブプロセスとして起動し、標準入出力の JSON でやり取りする。
       共通層自体は <b>torch に一切依存しない</b>。
+      やり取りする中身は <code>engine/_shared/protocol.py</code> のデータクラスで、
+      <b>親と runner が同じクラスを使う</b>ので片方だけ形が変わることがない。
     </p>
 
     <div class="arch">
@@ -762,7 +764,7 @@
         <p>各エンジンの仮想環境の中で torch を読み込み、GPU のアーキテクチャに対応したビルドかまで見る。</p>
         <div class="cmd">
           <div class="head">tts doctor</div>
-<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.doctor
+<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli doctor
 
 <span class="out">== GPU ==
 NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
@@ -786,7 +788,7 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
         <p>最も軽い chatterbox から試すのが早い。</p>
         <div class="cmd">
           <div class="head">PowerShell</div>
-<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth <span class="f">-e</span> chatterbox <span class="f">-t</span> <span class="s">"こんにちは。"</span> <span class="f">-l</span> ja <span class="f">-O</span> hello.wav
+<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth <span class="f">-e</span> chatterbox <span class="f">-t</span> <span class="s">"こんにちは。"</span> <span class="f">-l</span> ja <span class="f">-O</span> hello.wav
 
 <span class="out">[info] Engine chatterbox is ready (ResembleAI/chatterbox multilingual v3)
 wrote D:\...\output\hello.wav
@@ -801,10 +803,7 @@ wrote D:\...\output\hello.wav
         </p>
         <div class="cmd">
           <div class="head">PowerShell</div>
-<pre><span class="p">&gt; </span><span class="f">function</span> tts {
-<span class="p">&gt;&gt; </span>    $exe = <span class="s">&quot;$PWD\.venvs\common\Scripts\python.exe&quot;</span>
-<span class="p">&gt;&gt; </span>    &amp; $exe -m <span class="s">&quot;ttstoolkit.cli.$($args[0])&quot;</span> @($args | Select-Object -Skip 1)
-<span class="p">&gt;&gt; </span>}</pre>
+<pre><span class="p">&gt; </span><span class="f">function</span> tts { &amp; <span class="s">&quot;$PWD\.venvs\common\Scripts\python.exe&quot;</span> -m ttstoolkit.cli @args }</pre>
         </div>
       </li>
     </ol>
@@ -818,7 +817,7 @@ wrote D:\...\output\hello.wav
     <h2>画面から使う</h2>
     <p>
       最低限の操作は GUI (PySide6) からできる。合成そのものは CLI と同じ
-      <code>ttstoolkit.engine</code> を呼ぶだけなので、
+      <code>ttstoolkit.core</code> を呼ぶだけなので、
       <b>画面からできることと CLI からできることは常に一致する</b>。
     </p>
 
@@ -980,8 +979,8 @@ wrote D:\...\output\hello.wav
     <h3>Python から呼ぶ</h3>
     <div class="cmd">
       <div class="head">Python</div>
-<pre><span class="f">from</span> ttstoolkit.engine.registry <span class="f">import</span> create_engine
-<span class="f">from</span> ttstoolkit.engine.types <span class="f">import</span> SynthesisRequest
+<pre><span class="f">from</span> ttstoolkit.core.interface <span class="f">import</span> create_engine
+<span class="f">from</span> ttstoolkit.engine._shared.protocol <span class="f">import</span> SynthesisRequest
 
 <span class="f">with</span> create_engine(<span class="s">"irodori"</span>) <span class="f">as</span> engine:
     result = engine.synthesize(
@@ -1446,20 +1445,23 @@ python/ttstoolkit/               <span class="cm">ツール本体</span>
   tool_config.py                 <span class="cm">ツール設定とエンジン定義</span>
   definitions.py                 <span class="cm">画面に並べる選択肢の Enum</span>
   logger.py                      <span class="cm">logging を Qt のシグナルへ中継</span>
-  cli/                           <span class="cm">1 コマンド 1 ファイル</span>
-    synth.py batch.py script.py engines.py doctor.py
+  cli/                           <span class="cm">単一入口。python -m ttstoolkit.cli &lt;command&gt;</span>
+    __main__.py                  <span class="cm">実行の土台 + サブパーサ + dispatch</span>
+    commands.py                  <span class="cm">各コマンドの処理</span>
   gui/                           <span class="cm">PySide6 の MVC</span>
     main_model.py main_view.py main_controller.py
     widgets/                     <span class="cm">入力行と 3 つのタブ</span>
-  engine/                        <span class="cm">CLI / GUI 共用の処理本体</span>
-    interface.py                 <span class="cm">TTSEngine 抽象。対応外パラメータの検証もここ</span>
-    types.py                     <span class="cm">SynthesisRequest / SynthesisResult / 例外</span>
+  core/                          <span class="cm">CLI / GUI 共用の処理本体（親プロセス側）</span>
+    interface.py                 <span class="cm">TTSEngine 抽象 + create_engine。対応外の検証もここ</span>
+    types.py                     <span class="cm">Capability / EngineSpec / SynthesisResult / 例外</span>
     subprocess_engine.py         <span class="cm">runner を常駐させ JSON で駆動する</span>
     jobs.py                      <span class="cm">まとめて合成する処理と manifest</span>
     script.py                    <span class="cm">cast.toml と台本テキストの読み込み</span>
-    runners/                     <span class="cm">各モデルの環境で動く小さなプログラム</span>
-      interface.py               <span class="cm">EngineRunner 抽象とプロトコル</span>
-      <span class="q">qwen_runner.py</span> <span class="c">chatterbox_runner.py</span> <span class="i">irodori_runner.py</span>
+    paths.py settings.py         <span class="cm">入出力フォルダ / OS 差分・例外・ロガー</span>
+  engine/                        <span class="cm">別の仮想環境で動く runner</span>
+    _shared/protocol.py          <span class="cm">両側が守る契約。Request / Response</span>
+    _shared/runner_base.py       <span class="cm">EngineRunner 抽象と JSONL のループ</span>
+    <span class="q">qwen/runner.py</span> <span class="c">chatterbox/runner.py</span> <span class="i">irodori/runner.py</span>
 engine_env/                      <span class="cm">各エンジンの環境を作るための定義</span>
   <span class="q">qwen/</span> <span class="c">chatterbox/</span>            <span class="cm">pyproject.toml + mise.toml + uv.lock</span>
   <span class="i">irodori/</span>                       <span class="cm">patch_vendor.py + vendor/（上流の clone）</span>

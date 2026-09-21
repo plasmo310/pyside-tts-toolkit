@@ -14,16 +14,17 @@ from typing import Any
 
 from PySide6.QtCore import QByteArray, QSettings
 
-from ttstoolkit.engine.jobs import JobOutcome, run_script
-from ttstoolkit.engine.paths import SCRIPT_DIR, VOICES_DIR, resolve_input
-from ttstoolkit.engine.registry import create_engine, get_spec
-from ttstoolkit.engine.script import load_script
-from ttstoolkit.engine.settings import TTSToolkitError, get_logger
-from ttstoolkit.engine.types import SynthesisRequest, default_output_path
+from ttstoolkit.core.interface import create_engine
+from ttstoolkit.core.jobs import JobOutcome, run_script
+from ttstoolkit.core.paths import SCRIPT_DIR, VOICES_DIR, resolve_input
+from ttstoolkit.core.script import load_script
+from ttstoolkit.core.settings import TTSToolkitError, get_logger
+from ttstoolkit.core.types import default_output_path
+from ttstoolkit.engine._shared.protocol import SynthesisRequest
 from ttstoolkit.gui.widgets.script_tab import ScriptTabRequest
 from ttstoolkit.gui.widgets.synthesis_tab import SynthesisTabRequest
 from ttstoolkit.gui.widgets.voice_design_tab import VoiceDesignTabRequest
-from ttstoolkit.tool_config import ToolConfig
+from ttstoolkit.tool_config import ToolConfig, get_spec
 
 _logger = get_logger(__name__)
 

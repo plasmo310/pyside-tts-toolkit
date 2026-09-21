@@ -4,7 +4,7 @@
 scripts\win\LaunchApp.bat
 ```
 
-合成そのものは CLI と同じ `ttstoolkit.engine` を呼ぶだけなので、
+合成そのものは CLI と同じ `ttstoolkit.core` を呼ぶだけなので、
 **画面からできることと CLI からできることは常に一致します**。細かい調整は
 CLI のほうが速いので、画面は「試す・確かめる・1 本作る」のに使うのが
 向いています。

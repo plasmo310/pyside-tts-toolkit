@@ -5,6 +5,10 @@
 1. `ToolConfig` ... GUI の見た目・保存先・リソースのパス
 2. `ENGINE_DEFINITIONS` ... どのモデルをどの仮想環境で動かすかの定義
 
+定義を持っているのがここなので、名前からの引き当て (`get_spec` など) も
+ここに置いている。定義から実際に動くエンジンを作るのは
+`core.interface.create_engine`。
+
 画面に並べる選択肢は `definitions.py` に置いてある。Qt には依存しない
 ので、CLI からもそのまま import できる。
 """
@@ -14,10 +18,10 @@ from __future__ import annotations
 import os
 import sys
 
+from ttstoolkit.core.paths import PYTHON_DIR, ROOT_DIR, venv_python
+from ttstoolkit.core.settings import IS_WINDOWS
+from ttstoolkit.core.types import Capability, EngineNotFoundError, EngineSpec
 from ttstoolkit.definitions import EngineType
-from ttstoolkit.engine.paths import PYTHON_DIR, ROOT_DIR, venv_python
-from ttstoolkit.engine.settings import IS_WINDOWS
-from ttstoolkit.engine.types import Capability, EngineSpec
 
 # スタイルシートの中で resources/ の絶対パスに置き換えるプレースホルダ
 _RESOURCES_DIR_PLACEHOLDER = "{RESOURCES_DIR}"
@@ -153,7 +157,7 @@ ENGINE_DEFINITIONS: dict[str, EngineSpec] = {
         languages=("ja", "en"),
         model_id="Qwen/Qwen3-TTS-12Hz-1.7B-Base",
         python=venv_python("engine-qwen"),
-        runner="ttstoolkit.engine.runners.qwen_runner",
+        runner="ttstoolkit.engine.qwen.runner",
         cwd=ROOT_DIR,
         setup_doc="01_qwen3-tts.md",
         python_path=(PYTHON_DIR,),
@@ -188,7 +192,7 @@ ENGINE_DEFINITIONS: dict[str, EngineSpec] = {
         languages=("ja", "en"),
         model_id="ResembleAI/chatterbox (multilingual v3)",
         python=venv_python("engine-chatterbox"),
-        runner="ttstoolkit.engine.runners.chatterbox_runner",
+        runner="ttstoolkit.engine.chatterbox.runner",
         cwd=ROOT_DIR,
         setup_doc="02_chatterbox.md",
         python_path=(PYTHON_DIR,),
@@ -215,7 +219,7 @@ ENGINE_DEFINITIONS: dict[str, EngineSpec] = {
         languages=("ja",),
         model_id="Aratako/Irodori-TTS-v4.1-Small",
         python=venv_python("engine-irodori"),
-        runner="ttstoolkit.engine.runners.irodori_runner",
+        runner="ttstoolkit.engine.irodori.runner",
         # 上流リポジトリは相対パスで作業ファイルを置くので clone の中で動かす。
         cwd=_IRODORI_VENDOR,
         setup_doc="03_irodori-tts.md",
@@ -232,3 +236,33 @@ ENGINE_DEFINITIONS: dict[str, EngineSpec] = {
         },
     ),
 }
+
+
+def engine_names() -> list[str]:
+    """使えるエンジン名を定義順で返す。"""
+    return list(ENGINE_DEFINITIONS)
+
+
+def available_engines() -> dict[str, EngineSpec]:
+    """エンジン名 -> 定義の辞書を返す。"""
+    return dict(ENGINE_DEFINITIONS)
+
+
+def get_spec(name: str) -> EngineSpec:
+    """エンジン名から定義を返す。
+
+    Args:
+        name: エンジン名。
+
+    Returns:
+        EngineSpec: そのエンジンの定義。
+
+    Raises:
+        EngineNotFoundError: 定義されていない名前のとき。
+    """
+    spec = ENGINE_DEFINITIONS.get(name)
+    if spec is None:
+        raise EngineNotFoundError(
+            f"Unknown engine '{name}' (available: {', '.join(engine_names())})"
+        )
+    return spec

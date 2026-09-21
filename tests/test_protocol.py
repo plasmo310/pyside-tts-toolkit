@@ -3,21 +3,25 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import wave
 
 import pytest
 
-from ttstoolkit.engine.paths import PYTHON_DIR
-from ttstoolkit.engine.subprocess_engine import SubprocessEngine
-from ttstoolkit.engine.types import (
+from ttstoolkit.core.paths import PYTHON_DIR
+from ttstoolkit.core.subprocess_engine import SubprocessEngine
+from ttstoolkit.core.types import (
     Capability,
     EngineNotInstalledError,
     EngineProcessError,
     EngineSpec,
-    SynthesisRequest,
     UnsupportedLanguageError,
     UnsupportedParameterError,
+)
+from ttstoolkit.engine._shared.protocol import (
+    SynthesisRequest,
+    SynthesisResponse,
 )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -252,3 +256,77 @@ def test_missing_reference_audio_is_reported(tmp_path) -> None:
                 reference_audio=str(tmp_path / "missing.wav"),
             )
         )
+
+
+# ---------------------------------------------------------------------
+# 契約そのもの
+# ---------------------------------------------------------------------
+
+
+def test_request_survives_a_json_round_trip(tmp_path) -> None:
+    """リクエストが JSON を往復しても同じ内容であること。"""
+    original = SynthesisRequest(
+        text=JA_TEXT,
+        output_path=str(tmp_path / "a.wav"),
+        language="ja",
+        reference_audio=None,
+        reference_text="書き起こし",
+        voice_design="落ち着いた低い声",
+        seed=42,
+        speed=1.25,
+    )
+    assert SynthesisRequest.from_json(original.to_json()) == original
+
+
+def test_request_ignores_envelope_keys(tmp_path) -> None:
+    """封筒のキーが混ざっていても読めること。
+
+    runner は封筒ごと `from_json()` に渡すので、これが成り立つ必要がある。
+    """
+    payload = SynthesisRequest(
+        text="テスト", output_path=str(tmp_path / "b.wav")
+    ).to_json()
+    payload.update({"op": "synthesize", "id": 7})
+    assert SynthesisRequest.from_json(payload).text == "テスト"
+
+
+def test_response_survives_a_json_round_trip() -> None:
+    """レスポンスが JSON を往復しても同じ内容であること。"""
+    original = SynthesisResponse(
+        sample_rate=48000,
+        duration_sec=3.25,
+        elapsed_sec=1.5,
+        model_id="Aratako/Irodori-TTS-v4.1-Small",
+    )
+    assert SynthesisResponse.from_json(original.to_json()) == original
+
+
+def test_broken_response_is_rejected() -> None:
+    """項目が足りないレスポンスはその場で弾かれること。"""
+    with pytest.raises(ValueError):
+        SynthesisResponse.from_json({"sample_rate": 24000})
+
+
+def test_importing_core_does_not_hijack_stdout() -> None:
+    """core を読み込んでも標準出力が差し替わらないこと。
+
+    `engine/_shared/runner_base.py` は import した時点で `sys.stdout` を
+    `sys.stderr` に差し替える。親プロセス側がうっかりあれを引き込むと
+    CLI の表示が丸ごと壊れるので、ここで検出する。
+    """
+    code = (
+        "import sys;"
+        "import ttstoolkit.core.subprocess_engine;"
+        "import ttstoolkit.core.jobs;"
+        "import ttstoolkit.cli.commands;"
+        "print('clean' if sys.stdout is not sys.stderr else 'hijacked')"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env={**os.environ, "PYTHONPATH": PYTHON_DIR},
+        check=True,
+    )
+    assert completed.stdout.strip() == "clean"

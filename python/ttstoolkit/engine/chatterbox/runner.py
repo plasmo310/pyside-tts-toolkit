@@ -1,21 +1,25 @@
 """Chatterbox Multilingual V3 の runner。
 
     .venvs/engine-chatterbox/Scripts/python.exe \
-        -m ttstoolkit.engine.runners.chatterbox_runner
+        -m ttstoolkit.engine.chatterbox.runner
 
 この仮想環境だけが chatterbox-tts / transformers 5.2.0 /
 torch 2.7.1+cu128 を持つ。3 つのエンジンの中では最も軽く、導入も速い。
 
 torch とモデルのライブラリを関数の中で import しているのは、
-`interface` より先に読み込まれて stdout の退避が間に合わなくなるのを
-防ぐため (詳しくは `interface` の docstring を参照)。
+`runner_base` より先に読み込まれて stdout の退避が間に合わなくなるのを
+防ぐため (詳しくは `_shared/runner_base.py` の docstring を参照)。
 """
 
 from __future__ import annotations
 
 import time
 
-from ttstoolkit.engine.runners.interface import (
+from ttstoolkit.engine._shared.protocol import (
+    SynthesisRequest,
+    SynthesisResponse,
+)
+from ttstoolkit.engine._shared.runner_base import (
     EngineRunner,
     log,
     serve,
@@ -59,34 +63,34 @@ class ChatterboxRunner(EngineRunner):
         """ロードしたモデルの識別子。"""
         return f"ResembleAI/chatterbox multilingual {self.__t3_model}"
 
-    def synthesize(self, message: dict) -> dict:
+    def synthesize(self, request: SynthesisRequest) -> SynthesisResponse:
         """1 件を合成して wav を書き出す。
 
         Args:
-            message: 親から届いたリクエスト。
+            request: 親から届いたリクエスト。
 
         Returns:
-            dict: サンプリングレート・長さ・所要時間。
+            SynthesisResponse: サンプリングレート・長さ・所要時間。
 
         Raises:
             ValueError: 対応していない言語が指定されたとき。
         """
         from chatterbox.mtl_tts import SUPPORTED_LANGUAGES
 
-        language = message.get("language") or "ja"
+        language = request.language or "ja"
         if language not in SUPPORTED_LANGUAGES:
             raise ValueError(
                 f"Chatterbox does not support language {language!r} "
                 f"(supported: {', '.join(sorted(SUPPORTED_LANGUAGES))})"
             )
 
-        self.__apply_seed(message.get("seed"))
+        self.__apply_seed(request.seed)
 
         started = time.monotonic()
         wave_data = self.__model.generate(
-            message["text"],
+            request.text,
             language_id=language,
-            audio_prompt_path=message.get("reference_audio"),
+            audio_prompt_path=request.reference_audio,
             exaggeration=float(self.__options.get("exaggeration", 0.5)),
             cfg_weight=float(self.__options.get("cfg_weight", 0.5)),
             temperature=float(self.__options.get("temperature", 0.8)),
@@ -94,14 +98,12 @@ class ChatterboxRunner(EngineRunner):
         elapsed = time.monotonic() - started
 
         sample_rate = int(self.__model.sr)
-        frames = write_wav_pcm16(
-            message["output_path"], wave_data, sample_rate
+        frames = write_wav_pcm16(request.output_path, wave_data, sample_rate)
+        return SynthesisResponse(
+            sample_rate=sample_rate,
+            duration_sec=frames / sample_rate,
+            elapsed_sec=elapsed,
         )
-        return {
-            "sample_rate": sample_rate,
-            "duration_sec": frames / sample_rate,
-            "elapsed_sec": elapsed,
-        }
 
     @staticmethod
     def __resolve_device(requested: str) -> str:

@@ -117,13 +117,13 @@ pwsh scripts\win\setup_engines.ps1 -Targets common,chatterbox
 
 ```powershell
 # 環境の健全性チェック
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.doctor
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli doctor
 
 # エンジン一覧と対応機能
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.engines
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli engines
 
 # 1 件合成（最も軽い chatterbox から試すとよい）
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e chatterbox -t "こんにちは。" -l ja -O hello.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e chatterbox -t "こんにちは。" -l ja -O hello.wav
 ```
 
 `doctor` は各エンジンの venv の中で torch を読み込み、CUDA が使えるか、
@@ -133,7 +133,7 @@ GPU のアーキテクチャに対応したビルドかまで確認する。
 
 | パス | 内容 |
 |---|---|
-| `python/ttstoolkit/` | ツール本体。CLI・GUI・エンジン |
+| `python/ttstoolkit/` | ツール本体。cli / gui / core / engine |
 | `engine_env/` | 各エンジンの仮想環境を作るための定義 |
 | `.venvs/` | 仮想環境の実体（git 管理外） |
 | `input/voices/` | 参照音声の置き場（git 管理外） |
@@ -145,16 +145,13 @@ GPU のアーキテクチャに対応したビルドかまで確認する。
 | `tests/` | 共通層のテスト（モデル不要） |
 | `docs/` | ドキュメント一式 |
 
-`.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.<command>` は長いので、
+`.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli <command>` は長いので、
 サブコマンド名を受け取る関数を 1 つ作っておくと楽になる
 （`Set-Alias` は引数を渡せないため関数にする）。
 以降の例では `tts` と書く。
 
 ```powershell
-function tts {
-    $exe = "$PWD\.venvs\common\Scripts\python.exe"
-    & $exe -m "ttstoolkit.cli.$($args[0])" @($args | Select-Object -Skip 1)
-}
+function tts { & "$PWD\.venvs\common\Scripts\python.exe" -m ttstoolkit.cli @args }
 ```
 
 ## 5. 使い方
@@ -229,8 +226,8 @@ tts batch -e qwen sample.ja.json -o output\batch
 ### Python から使う
 
 ```python
-from ttstoolkit.engine.registry import create_engine
-from ttstoolkit.engine.types import SynthesisRequest
+from ttstoolkit.core.interface import create_engine
+from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
 with create_engine("irodori") as engine:
     result = engine.synthesize(
@@ -274,7 +271,7 @@ mise 経由で実行したときにだけ効く。
 ### `runner が JSON 以外を stdout に出力しました`
 
 エンジン側のライブラリが標準出力にログを出している。runner は
-`ttstoolkit/engine/runners/interface.py` を import した時点で `sys.stdout` を
+`ttstoolkit/engine/_shared/runner_base.py` を import した時点で `sys.stdout` を
 `stderr` へ退避しているので通常は起きない。自分で runner に `print()` を
 足した場合はそれが原因なので、`log()` を使う。
 

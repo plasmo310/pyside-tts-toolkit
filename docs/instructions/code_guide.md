@@ -68,7 +68,7 @@ def resolve_input(path: str, default_dir: str | None = None) -> str:
 - 色・サイズは `resources/ui/stylesheet.qss` に置き、Python 側は
   `setProperty("class", "...")` でタグを付けるだけにする
 
-## python/ttstoolkit/engine の約束
+## python/ttstoolkit/core の約束
 
 GUI からも CLI からも呼ぶので、次を守ります。
 
@@ -87,12 +87,15 @@ GUI からも CLI からも呼ぶので、次を守ります。
   `PYTHONPATH` として渡す
 - サブパッケージをまたぐ import は `ttstoolkit` から始まる絶対 import にする
 
-### runner だけの例外
+### 関数の中で import してよい 2 箇所
 
-runner は **torch やモデルのライブラリを関数の中で import** します。
+原則は先頭で import します。例外は次の 2 つだけで、どちらも理由を
+docstring に書いてあります。
+
+**1. runner の torch とモデルのライブラリ**
 
 ```python
-from ttstoolkit.engine.runners.interface import EngineRunner, log, serve
+from ttstoolkit.engine._shared.runner_base import EngineRunner, log, serve
 
 
 class QwenRunner(EngineRunner):
@@ -100,21 +103,34 @@ class QwenRunner(EngineRunner):
         import torch          # ← ここで import する
 ```
 
-`runners/interface.py` は import された時点で `sys.stdout` を `stderr` へ
+`runner_base.py` は import された時点で `sys.stdout` を `stderr` へ
 差し替えます。これが torch より先に起きないと、ライブラリのログが JSONL の
 通信路を壊します。モジュール先頭に `import torch` を書くと、import の
 並べ替えで順序が崩れかねないので、関数の中に置いて順序に依存させません。
+
+**2. `core/interface.py` の `create_engine`**
+
+`SubprocessEngine` は同じファイルの `TTSEngine` を継承するので、先頭で
+import すると行きと帰りができてしまいます。
+
+### core は runner_base を import しない
+
+`engine/_shared/` のうち、**親プロセス側が使ってよいのは `protocol.py`
+だけ**です。`runner_base.py` を読み込むと標準出力が差し替わり、CLI の
+表示が丸ごと壊れます。`tests/test_protocol.py` の
+`test_importing_core_does_not_hijack_stdout` が検出します。
 
 ## どこから読むか
 
 | 知りたいこと | 読む順番 |
 |---|---|
-| 全体の流れ | `cli/synth.py` → `engine/registry.py` → `engine/subprocess_engine.py` |
-| 共通の型 | `engine/types.py` |
-| エンジンの抽象 | `engine/interface.py` |
-| runner の書き方 | `engine/runners/interface.py` → `chatterbox_runner.py`（最短） |
-| まとめて合成 | `engine/jobs.py` |
-| 台本の文法 | `engine/script.py` の docstring |
+| 全体の流れ | `cli/__main__.py` → `cli/commands.py` → `core/interface.py` → `core/subprocess_engine.py` |
+| 親と runner の契約 | `engine/_shared/protocol.py`（ここが起点） |
+| エンジンの抽象 | `core/interface.py` |
+| runner の書き方 | `engine/_shared/runner_base.py` → `engine/chatterbox/runner.py`（最短） |
+| 親側の型 | `core/types.py` |
+| まとめて合成 | `core/jobs.py` |
+| 台本の文法 | `core/script.py` の docstring |
 | GUI | `gui/main_controller.py` → `main_view.py` → `main_model.py` |
 
 ## よくある変更
@@ -123,8 +139,9 @@ class QwenRunner(EngineRunner):
 
 1. `engine_env/<name>/pyproject.toml` と `mise.toml` を作る
    （`mise.toml` は `UV_PROJECT_ENVIRONMENT` を `.venvs/engine-<name>` に向ける）
-2. `engine/runners/<name>_runner.py` に `EngineRunner` の実装を書く。
-   最短の例は `chatterbox_runner.py`（120 行）
+2. `engine/<name>/runner.py` に `EngineRunner` の実装を書く。
+   `synthesize(request) -> SynthesisResponse` を埋めるだけ。
+   最短の例は `engine/chatterbox/runner.py`（145 行）
 3. `definitions.py` の `EngineType` に 1 行足す
 4. `tool_config.py` の `ENGINE_DEFINITIONS` に定義を足す。
    `capabilities` は**実際に効くものだけ**を書く（効かないものを書くと
@@ -136,11 +153,13 @@ class QwenRunner(EngineRunner):
 
 ### 共通インターフェースに項目を足す
 
-1. `engine/types.py` の `SynthesisRequest` にフィールドと `to_payload()` を足す
-2. 対応状況を表すなら `Capability` に 1 つ足す
-3. `engine/interface.py` の `validate()` に未対応時のエラーを足す
-4. 各 runner で読む
-5. `cli/common.py` の `add_voice_args()` と、GUI の該当タブに入力欄を足す
+1. `engine/_shared/protocol.py` の `SynthesisRequest` にフィールドを足し、
+   `to_json()` / `from_json()` の両方を直す（片方だけだと静かに落ちる）
+2. 対応状況を表すなら `core/types.py` の `Capability` に 1 つ足す
+3. `core/interface.py` の `validate()` に未対応時のエラーを足す
+4. 各 runner で `request.<新しい項目>` を読む
+5. `cli/__main__.py` の `_add_synth()` と、GUI の該当タブに入力欄を足す
+6. `tests/test_protocol.py` の往復テストに新しい項目を入れる
 
 ### 生成パラメータを調整する
 
@@ -149,7 +168,7 @@ runner が `options.get(...)` で読むので、コードを直す必要はあ�
 
 ### 台本の文法を広げる
 
-`engine/script.py` の `_LINE_OPTION_KEYS` / `_CAST_KEYS` に足し、
+`core/script.py` の `_LINE_OPTION_KEYS` / `_CAST_KEYS` に足し、
 `_parse_line_options()` と `Script.to_request()` で読む。
 `tests/test_script.py` にケースを足す。
 
@@ -160,17 +179,19 @@ runner が `options.get(...)` で読むので、コードを直す必要はあ�
 ```
 
 モデルを使わずに通ります。`tests/fake_runner.py` が
-`engine/runners/interface.py` をそのまま使うダミーになっていて、
-JSONL のやり取り・UTF-8・失敗からの復帰・未対応パラメータの拒否を
-確認しています。エンジンを足したときも、ここが通れば共通層の側は健全です。
+`engine/_shared/runner_base.py` をそのまま使うダミーになっていて、
+JSONL のやり取り・UTF-8・失敗からの復帰・未対応パラメータの拒否・
+リクエストとレスポンスの JSON 往復を確認しています。
+エンジンを足したときも、ここが通れば親側は健全です。
 
 ## デバッグ
 
 | 症状 | 見るところ |
 |---|---|
-| エンジンが起動しない | `-m ttstoolkit.cli.doctor` |
+| エンジンが起動しない | `-m ttstoolkit.cli doctor` |
 | 合成が失敗する | `--verbose` を付けて runner の stderr を見る |
 | JSON 以外が stdout に出たと言われる | runner に `print()` を足していないか |
+| CLI の表示が消えた | `core` から `_shared/runner_base.py` を import していないか |
 | 出力が行方不明 | 相対パスを渡していないか（`SynthesisRequest` が絶対化する） |
 | GUI が固まる | 重い処理を `TaskRunner` に載せているか |
 

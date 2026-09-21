@@ -115,11 +115,11 @@ if ($Targets -contains 'irodori') {
 }
 
 Write-Step "構築結果"
-& $CommonPython -m ttstoolkit.cli.engines
+& $CommonPython -m ttstoolkit.cli engines
 
 Write-Host ""
 Write-Host "次の一歩:" -ForegroundColor Green
-Write-Host "  .\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.doctor"
+Write-Host "  .\.venvs\common\Scripts\python.exe -m ttstoolkit.cli doctor"
 Write-Host "  .\scripts\win\LaunchApp.bat"
 Write-Host ""
 Write-Host "初回の合成はモデル重みのダウンロードを伴うため時間がかかります。" -ForegroundColor Yellow

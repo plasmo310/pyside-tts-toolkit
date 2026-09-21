@@ -13,7 +13,7 @@ from typing import Any
 
 from PySide6 import QtCore
 
-from ttstoolkit.engine.settings import ROOT_LOGGER_NAME, TTSToolkitError
+from ttstoolkit.core.settings import ROOT_LOGGER_NAME, TTSToolkitError
 
 # 進捗を流す関数とキャンセル判定の関数を受け取り、結果を返す処理
 TaskFunc = Callable[[Callable[[str], None], Callable[[], bool]], Any]

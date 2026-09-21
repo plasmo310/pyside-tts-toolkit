@@ -1,7 +1,7 @@
 """Irodori-TTS v4.1 Small の runner。
 
     .venvs/engine-irodori/Scripts/python.exe \
-        -m ttstoolkit.engine.runners.irodori_runner
+        -m ttstoolkit.engine.irodori.runner
 
 Irodori は PyPI 未公開 (依存の dacvae も PyPI に無い) ため、上流
 リポジトリを `engine_env/irodori/vendor/Irodori-TTS` へ clone し、その
@@ -13,15 +13,19 @@ Irodori は PyPI 未公開 (依存の dacvae も PyPI に無い) ため、上流
 内部 API (`InferenceRuntime`) を直接使って常駐させる。
 
 torch とモデルのライブラリを関数の中で import しているのは、
-`interface` より先に読み込まれて stdout の退避が間に合わなくなるのを
-防ぐため (詳しくは `interface` の docstring を参照)。
+`runner_base` より先に読み込まれて stdout の退避が間に合わなくなるのを
+防ぐため (詳しくは `_shared/runner_base.py` の docstring を参照)。
 """
 
 from __future__ import annotations
 
 import time
 
-from ttstoolkit.engine.runners.interface import (
+from ttstoolkit.engine._shared.protocol import (
+    SynthesisRequest,
+    SynthesisResponse,
+)
+from ttstoolkit.engine._shared.runner_base import (
     EngineRunner,
     log,
     serve,
@@ -82,44 +86,42 @@ class IrodoriRunner(EngineRunner):
         """ロードしたモデルの識別子。"""
         return self.__checkpoint_repo
 
-    def synthesize(self, message: dict) -> dict:
+    def synthesize(self, request: SynthesisRequest) -> SynthesisResponse:
         """1 件を合成して wav を書き出す。
 
         Args:
-            message: 親から届いたリクエスト。
+            request: 親から届いたリクエスト。
 
         Returns:
-            dict: サンプリングレート・長さ・所要時間。
+            SynthesisResponse: サンプリングレート・長さ・所要時間。
 
         Raises:
             ValueError: 日本語以外が指定されたとき。
         """
         from irodori_tts.inference_runtime import SamplingRequest
 
-        language = message.get("language")
-        if language not in (None, "ja"):
+        if request.language not in (None, "ja"):
             raise ValueError(
-                f"Irodori-TTS is Japanese only (got {language!r})"
+                f"Irodori-TTS is Japanese only (got {request.language!r})"
             )
 
-        reference = message.get("reference_audio")
-        caption = self.__resolve_caption(message)
+        reference = request.reference_audio
+        caption = self.__resolve_caption(request)
         cfg_text, cfg_caption, cfg_speaker = self.__resolve_cfg(
             caption, reference
         )
 
         # 共通の speed は「速いほど短い」。Irodori の duration_scale は
         # 「大きいほど長い」ので逆数を渡す。
-        speed = float(message.get("speed") or 1.0)
         num_steps = self.__options.get("num_steps")
 
-        request = SamplingRequest(
-            text=message["text"],
+        sampling = SamplingRequest(
+            text=request.text,
             caption=caption,
             ref_wav=reference,
             no_ref=reference is None,
-            seed=message.get("seed"),
-            duration_scale=1.0 / speed,
+            seed=request.seed,
+            duration_scale=1.0 / request.speed,
             num_steps=int(num_steps) if num_steps else None,
             cfg_scale_text=cfg_text,
             cfg_scale_caption=cfg_caption,
@@ -128,7 +130,7 @@ class IrodoriRunner(EngineRunner):
         )
 
         started = time.monotonic()
-        result = self.__runtime.synthesize(request, log_fn=log)
+        result = self.__runtime.synthesize(sampling, log_fn=log)
         elapsed = time.monotonic() - started
 
         for line in result.messages or []:
@@ -136,29 +138,27 @@ class IrodoriRunner(EngineRunner):
 
         sample_rate = int(result.sample_rate)
         frames = write_wav_pcm16(
-            message["output_path"], result.audio, sample_rate
+            request.output_path, result.audio, sample_rate
         )
-        return {
-            "sample_rate": sample_rate,
-            "duration_sec": frames / sample_rate,
-            "elapsed_sec": elapsed,
-        }
+        return SynthesisResponse(
+            sample_rate=sample_rate,
+            duration_sec=frames / sample_rate,
+            elapsed_sec=elapsed,
+        )
 
-    def __resolve_caption(self, message: dict) -> str | None:
+    def __resolve_caption(self, request: SynthesisRequest) -> str | None:
         """声と話し方を説明する文章 (caption) を決める。
 
         Irodori では参照音声と併用でき、その場合は声質が参照音声、
         話し方が caption になる。
 
         Args:
-            message: 親から届いたリクエスト。
+            request: 親から届いたリクエスト。
 
         Returns:
             str | None: caption。指定が無ければ None。
         """
-        caption = (
-            message.get("voice_design") or self.__options.get("caption") or ""
-        )
+        caption = request.voice_design or self.__options.get("caption") or ""
         return str(caption).strip() or None
 
     def __resolve_cfg(

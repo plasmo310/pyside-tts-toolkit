@@ -1,6 +1,6 @@
 # CLI 共通のこと
 
-コマンドは 5 本あり、それぞれ独立したモジュールです。
+入口は 1 つで、サブコマンドで切り替えます。
 
 | コマンド | 内容 |
 |---|---|
@@ -15,20 +15,24 @@
 リポジトリのルートで、共通層の Python を使って実行します。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e qwen -t "こんにちは。"
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e qwen -t "こんにちは。"
 ```
 
-毎回書くには長いので、サブコマンド名を受け取る関数を作っておくと楽です
+毎回書くには長いので、関数を 1 つ作っておくと楽です
 （`Set-Alias` は引数を渡せないため関数にします）。
 
 ```powershell
-function tts {
-    $exe = "$PWD\.venvs\common\Scripts\python.exe"
-    & $exe -m "ttstoolkit.cli.$($args[0])" @($args | Select-Object -Skip 1)
-}
+function tts { & "$PWD\.venvs\common\Scripts\python.exe" -m ttstoolkit.cli @args }
 ```
 
 以降の例では `tts synth ...` と書きます。
+
+`--help` はサブコマンドごとにも出せます。
+
+```powershell
+tts --help          # サブコマンドの一覧
+tts synth --help    # synth の引数
+```
 
 ## 共通の引数
 

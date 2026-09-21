@@ -1,6 +1,6 @@
 """Qwen3-TTS の runner。
 
-    .venvs/engine-qwen/Scripts/python.exe -m ttstoolkit.engine.runners.qwen_runner
+    .venvs/engine-qwen/Scripts/python.exe -m ttstoolkit.engine.qwen.runner
 
 この仮想環境だけが qwen-tts / transformers 4.57.3 / torch cu128 を持つ。
 
@@ -14,15 +14,19 @@ Qwen3-TTS はチェックポイントが用途別に分かれている。
 圧迫するので、必要になった時点で初めてロードする。
 
 torch とモデルのライブラリを関数の中で import しているのは、
-`interface` より先に読み込まれて stdout の退避が間に合わなくなるのを
-防ぐため (詳しくは `interface` の docstring を参照)。
+`runner_base` より先に読み込まれて stdout の退避が間に合わなくなるのを
+防ぐため (詳しくは `_shared/runner_base.py` の docstring を参照)。
 """
 
 from __future__ import annotations
 
 import time
 
-from ttstoolkit.engine.runners.interface import (
+from ttstoolkit.engine._shared.protocol import (
+    SynthesisRequest,
+    SynthesisResponse,
+)
+from ttstoolkit.engine._shared.runner_base import (
     EngineRunner,
     log,
     serve,
@@ -86,68 +90,62 @@ class QwenRunner(EngineRunner):
         """既定で使うモデルの識別子。"""
         return self.__base_model
 
-    def synthesize(self, message: dict) -> dict:
+    def synthesize(self, request: SynthesisRequest) -> SynthesisResponse:
         """1 件を合成して wav を書き出す。
 
         Args:
-            message: 親から届いたリクエスト。
+            request: 親から届いたリクエスト。
 
         Returns:
-            dict: サンプリングレート・長さ・所要時間・使ったモデル。
+            SynthesisResponse: サンプリングレート・長さ・所要時間と、
+                実際に使ったモデル。
 
         Raises:
             ValueError: 声の指定の組み合わせが正しくないとき。
             RuntimeError: モデルが音声を返さなかったとき。
         """
-        self.__apply_seed(message.get("seed"))
+        self.__apply_seed(request.seed)
 
-        language_code = message.get("language")
         language = (
-            _LANGUAGE_NAMES.get(language_code) if language_code else None
+            _LANGUAGE_NAMES.get(request.language) if request.language else None
         )
-        reference = message.get("reference_audio")
-        design = (message.get("voice_design") or "").strip()
+        design = (request.voice_design or "").strip()
 
         started = time.monotonic()
         if design:
             model_id, waves, sample_rate = self.__generate_design(
-                message, language, design, reference
+                request, language, design
             )
-        elif reference:
+        elif request.reference_audio:
             model_id, waves, sample_rate = self.__generate_clone(
-                message, language, reference
+                request, language
             )
         else:
             model_id, waves, sample_rate = self.__generate_preset(
-                message, language, language_code
+                request, language
             )
         elapsed = time.monotonic() - started
 
         if not waves:
             raise RuntimeError("Qwen3-TTS returned no audio")
 
-        frames = write_wav_pcm16(message["output_path"], waves[0], sample_rate)
-        return {
-            "sample_rate": int(sample_rate),
-            "duration_sec": frames / int(sample_rate),
-            "elapsed_sec": elapsed,
-            "model_id": model_id,
-        }
+        frames = write_wav_pcm16(request.output_path, waves[0], sample_rate)
+        return SynthesisResponse(
+            sample_rate=int(sample_rate),
+            duration_sec=frames / int(sample_rate),
+            elapsed_sec=elapsed,
+            model_id=model_id,
+        )
 
     def __generate_design(
-        self,
-        message: dict,
-        language: str | None,
-        design: str,
-        reference: str | None,
+        self, request: SynthesisRequest, language: str | None, design: str
     ) -> tuple[str, list, int]:
         """文章の指示から架空の声を作って読み上げる。
 
         Args:
-            message: 親から届いたリクエスト。
+            request: 親から届いたリクエスト。
             language: Qwen に渡す言語名。
             design: 声を説明する文章。
-            reference: 参照音声のパス (指定されていたらエラーにする)。
 
         Returns:
             tuple[str, list, int]: モデル識別子・音声・サンプリングレート。
@@ -156,14 +154,14 @@ class QwenRunner(EngineRunner):
             ValueError: 参照音声と併用されたとき。
         """
         # 声の出どころがどちらか 1 つに決まらないので併用は禁じる
-        if reference:
+        if request.reference_audio:
             raise ValueError(
                 "Qwen3-TTS cannot combine voice design with a reference "
                 "audio; drop one of them"
             )
         model = self.__load(self.__design_model)
         waves, sample_rate = model.generate_voice_design(
-            text=message["text"],
+            text=request.text,
             instruct=design,
             language=language,
             max_new_tokens=self.__max_new_tokens,
@@ -171,55 +169,52 @@ class QwenRunner(EngineRunner):
         return self.__design_model, waves, sample_rate
 
     def __generate_clone(
-        self, message: dict, language: str | None, reference: str
+        self, request: SynthesisRequest, language: str | None
     ) -> tuple[str, list, int]:
         """参照音声の声を真似て読み上げる。
 
         Args:
-            message: 親から届いたリクエスト。
+            request: 親から届いたリクエスト。
             language: Qwen に渡す言語名。
-            reference: 参照音声のパス。
 
         Returns:
             tuple[str, list, int]: モデル識別子・音声・サンプリングレート。
         """
         model = self.__load(self.__base_model)
-        reference_text = message.get("reference_text")
         # 書き起こしが無いと ICL モードを使えない。話者埋め込みだけの
         # モードへ落とすが、クローン品質は下がるので警告を残す。
-        x_vector_only = reference_text is None
+        x_vector_only = request.reference_text is None
         if x_vector_only:
             log(
                 "No reference text given; falling back to "
                 "x_vector_only_mode (cloning quality will be lower)"
             )
         waves, sample_rate = model.generate_voice_clone(
-            text=message["text"],
+            text=request.text,
             language=language,
-            ref_audio=reference,
-            ref_text=reference_text,
+            ref_audio=request.reference_audio,
+            ref_text=request.reference_text,
             x_vector_only_mode=x_vector_only,
             max_new_tokens=self.__max_new_tokens,
         )
         return self.__base_model, waves, sample_rate
 
     def __generate_preset(
-        self, message: dict, language: str | None, language_code: str | None
+        self, request: SynthesisRequest, language: str | None
     ) -> tuple[str, list, int]:
         """プリセット話者で読み上げる。
 
         Args:
-            message: 親から届いたリクエスト。
+            request: 親から届いたリクエスト。
             language: Qwen に渡す言語名。
-            language_code: 共通の言語コード。話者を選ぶのに使う。
 
         Returns:
             tuple[str, list, int]: モデル識別子・音声・サンプリングレート。
         """
         model = self.__load(self.__custom_model)
         waves, sample_rate = model.generate_custom_voice(
-            text=message["text"],
-            speaker=self.__resolve_speaker(model, language_code),
+            text=request.text,
+            speaker=self.__resolve_speaker(model, request.language),
             language=language,
             instruct=self.__options.get("instruct") or None,
             max_new_tokens=self.__max_new_tokens,

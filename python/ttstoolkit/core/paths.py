@@ -2,20 +2,19 @@
 
 音声合成とは無関係な「このリポジトリのフォルダ構成」だけを扱う。
 
-    <ルート>/python/ttstoolkit/engine/  ... このファイルの置き場所
+    <ルート>/python/ttstoolkit/core/  ... このファイルの置き場所
     <ルート>/input/voices/   ... 参照音声 (オリジナルボイスの素材)
     <ルート>/input/script/   ... キャスト定義と台本
     <ルート>/input/batch/    ... バッチ入力 JSON
     <ルート>/output/         ... 書き出し結果
     <ルート>/.venvs/         ... 共通層と各エンジンの仮想環境
-    <ルート>/engine_env/     ... 各エンジンの仮想環境を作るための定義
 
 既定のパスは「実行時のカレントディレクトリ」ではなく
 「このファイルの位置から辿ったリポジトリルート」を基準にする。
 そうしないと実行時のカレントディレクトリに `output/` が作られてしまう。
 
 Attributes:
-    ENGINE_DIR (str): engine パッケージ (`python/ttstoolkit/engine/`)。
+    CORE_DIR (str): core パッケージ (`python/ttstoolkit/core/`)。
     PACKAGE_DIR (str): パッケージ (`python/ttstoolkit/`) の絶対パス。
     PYTHON_DIR (str): 検索パスに入れる `python/` の絶対パス。
     ROOT_DIR (str): リポジトリルートの絶対パス。
@@ -25,17 +24,16 @@ Attributes:
     BATCH_DIR (str): バッチ入力の既定の置き場 (`input/batch/`)。
     OUTPUT_DIR (str): 書き出し先 (`output/`)。
     VENVS_DIR (str): 仮想環境をまとめた場所 (`.venvs/`)。
-    ENGINE_ENV_DIR (str): エンジン環境の定義 (`engine_env/`)。
 """
 
 from __future__ import annotations
 
 import os
 
-from ttstoolkit.engine.settings import IS_WINDOWS
+from ttstoolkit.core.settings import IS_WINDOWS
 
-ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
-PACKAGE_DIR = os.path.dirname(ENGINE_DIR)
+CORE_DIR = os.path.dirname(os.path.abspath(__file__))
+PACKAGE_DIR = os.path.dirname(CORE_DIR)
 PYTHON_DIR = os.path.dirname(PACKAGE_DIR)
 ROOT_DIR = os.path.dirname(PYTHON_DIR)
 
@@ -46,7 +44,6 @@ BATCH_DIR = os.path.join(INPUT_DIR, "batch")
 OUTPUT_DIR = os.path.join(ROOT_DIR, "output")
 
 VENVS_DIR = os.path.join(ROOT_DIR, ".venvs")
-ENGINE_ENV_DIR = os.path.join(ROOT_DIR, "engine_env")
 
 
 def resolve_input(path: str, default_dir: str | None = None) -> str:

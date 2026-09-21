@@ -36,7 +36,7 @@ pwsh scripts\win\setup_engines.ps1
 詳しい手順とトラブルシュートは [docs/setup/](docs/setup/) にあります。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.doctor
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli doctor
 ```
 
 3 エンジンとも `CUDA ok` と出れば準備完了です。
@@ -54,16 +54,13 @@ Script（台本からまとめて合成）。使い方は
 ### 3. CLI で使う
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "こんにちは。"
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori -t "こんにちは。"
 ```
 
 毎回書くには長いので、関数を 1 つ作っておくと楽です。
 
 ```powershell
-function tts {
-    $exe = "$PWD\.venvs\common\Scripts\python.exe"
-    & $exe -m "ttstoolkit.cli.$($args[0])" @($args | Select-Object -Skip 1)
-}
+function tts { & "$PWD\.venvs\common\Scripts\python.exe" -m ttstoolkit.cli @args }
 ```
 
 ```powershell
@@ -159,10 +156,12 @@ tts synth -e irodori -t "Hello." -l en
 
 ```
 python/ttstoolkit/   ツール本体
-  cli/               コマンドラインの入口
+  cli/               コマンドラインの入口（単一入口 + 各コマンド）
   gui/               PySide6 の画面
-  engine/            CLI / GUI 共用の処理本体
-    runners/         各モデルの仮想環境で動く小さなプログラム
+  core/              CLI / GUI 共用の処理本体（親プロセス側）
+  engine/            別の仮想環境で動く runner
+    _shared/         両側が守る契約（protocol）と runner の土台
+    qwen/ chatterbox/ irodori/
 engine_env/          各エンジンの仮想環境を作るための定義
 .venvs/              仮想環境の実体
 input/               voices（参照音声）/ script（台本）/ batch（JSON）
@@ -185,8 +184,8 @@ tests/               共通層のテスト（モデル不要）
 ## Python から使う
 
 ```python
-from ttstoolkit.engine.registry import create_engine
-from ttstoolkit.engine.types import SynthesisRequest
+from ttstoolkit.core.interface import create_engine
+from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
 with create_engine("irodori") as engine:
     result = engine.synthesize(

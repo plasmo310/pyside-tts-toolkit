@@ -30,7 +30,7 @@ mise exec -- uv sync
 
 ```powershell
 cd ..\..\..
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e chatterbox -t "こんにちは。" -l ja -O cb.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e chatterbox -t "こんにちは。" -l ja -O cb.wav
 ```
 
 初回はモデル重みのダウンロードが入る。
@@ -111,7 +111,7 @@ arch_list ['sm_50','sm_60','sm_61','sm_70','sm_75','sm_80','sm_86','sm_90','sm_1
 CUDA available: True
 ```
 
-合成も正常に動作することを確認済み。`ttstoolkit.cli.doctor` で同じ内容を
+合成も正常に動作することを確認済み。`ttstoolkit.cli doctor` で同じ内容を
 確認できる。
 
 ## 設定 (`python/ttstoolkit/tool_config.py`)
@@ -141,7 +141,7 @@ options={
 参照音声を渡すだけでよい。書き起こしは不要。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e chatterbox `
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e chatterbox `
     -t "参照音声からクローンした声で話しています。" -l ja `
     -r alice.wav --seed 7 `
     -O cb_clone.wav
@@ -167,7 +167,7 @@ MIT ライセンスで商用利用は可能だが、この仕様は把握して�
 
 ### `no kernel image is available for execution on the device`
 
-torch の上書きが効いていない。`ttstoolkit.cli.doctor` で torch のバージョンを確認する。
+torch の上書きが効いていない。`ttstoolkit.cli doctor` で torch のバージョンを確認する。
 `2.6.0` と出ていたら venv を作り直す。
 
 ```powershell

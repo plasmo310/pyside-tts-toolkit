@@ -11,7 +11,7 @@ import logging
 
 from PySide6 import QtCore
 
-from ttstoolkit.engine.settings import ROOT_LOGGER_NAME
+from ttstoolkit.core.settings import ROOT_LOGGER_NAME
 
 # ログレベル -> 行頭に付けるラベル (CLI の [info] / [warn] と揃える)
 _LEVEL_LABELS = {

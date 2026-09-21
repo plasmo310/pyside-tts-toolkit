@@ -39,7 +39,7 @@ CUDA 版を取りに行かせている。
 
 ```powershell
 cd ..\..\..
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e qwen -t "こんにちは。" -l ja -O qwen.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e qwen -t "こんにちは。" -l ja -O qwen.wav
 ```
 
 初回はモデル重み（1.7B で 4GB 前後）のダウンロードが入るため時間がかかる。
@@ -74,7 +74,7 @@ Qwen のクローンには 2 つのモードがある。
 この引数は Qwen 専用である。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e qwen `
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e qwen `
     -t "おはようございます。" -l ja `
     -r alice.wav `
     --reference-text "こんにちは。音声合成のテストです。" `

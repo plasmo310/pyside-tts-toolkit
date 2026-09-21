@@ -1,6 +1,6 @@
 """テキストから音声を作るタブ。
 
-`ttstoolkit.cli.synth` と同じことを画面から指定できるようにする。
+`ttstoolkit.cli` の synth と同じことを画面から指定できるようにする。
 Run を押すと入力内容を `SynthesisTabRequest` に詰めて emit するだけで、
 合成そのものは Controller / Model の担当。
 """
@@ -12,8 +12,8 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
+from ttstoolkit.core.paths import OUTPUT_DIR, VOICES_DIR
 from ttstoolkit.definitions import EngineType, VoiceSourceType
-from ttstoolkit.engine.paths import OUTPUT_DIR, VOICES_DIR
 from ttstoolkit.gui.widgets.option_rows import (
     DirPathRow,
     EngineOptionsGroup,

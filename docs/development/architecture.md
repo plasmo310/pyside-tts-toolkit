@@ -2,7 +2,7 @@
 
 ```
 python/
-└─ ttstoolkit/   CLI・GUI・エンジンをまとめたパッケージ
+└─ ttstoolkit/   CLI・GUI・処理本体をまとめたパッケージ
 ```
 
 ## 出発点になった 3 つの制約
@@ -18,7 +18,7 @@ python/
 | Irodori-TTS | GitHub clone のみ | `>=5.12.1,<6` | `>=2.10.0,<2.11.0` |
 
 extras で切り替える単一環境は成立しない。**プロセス分離が必須**で、
-それが `engine/subprocess_engine.py` の存在理由になっている。
+それが `core/subprocess_engine.py` の存在理由になっている。
 
 ### 2. Irodori-TTS は pip install できない
 
@@ -37,53 +37,95 @@ Chatterbox がピンする torch 2.6.0 には sm_120 カーネルが無い。
 `engine_env/chatterbox/pyproject.toml` の `override-dependencies` で
 2.7.1+cu128 に引き上げている。
 
-## python/ttstoolkit — アプリケーションパッケージ
+## 2 つの層に分かれている
 
-合成も台本の解釈もここにあります。**画面出力もプロセス終了もしない**のが
-約束で、そのおかげで CLI からも GUI からも同じ API を呼べます。
-
-| 決まりごと | 理由 |
-| --- | --- |
-| `print()` しない。進捗は `logging` の `ttstoolkit` 名前空間へ | 呼ぶ側が Handler を差し替えるだけで出力先を変えられる |
-| `sys.exit()` しない。失敗は `TTSToolkitError` | GUI から呼んだときにプロセスが落ちない |
-| 長い処理は `on_progress` / `is_canceled` を受け取る | 進捗表示と協調キャンセルに使える |
-| 既定値は dataclass (`EngineSpec` など) が持つ | CLI と GUI で既定がずれない |
+このパッケージの中で最も重要な境界は、**どちらの Python で動くか**。
 
 ```
 ttstoolkit/
 ├─ main.py             ← GUI の起点。QApplication を作って Controller を起動
-├─ tool_config.py      ツールの設定と ENGINE_DEFINITIONS
+├─ tool_config.py      ツールの設定、ENGINE_DEFINITIONS、名前からの引き当て
 ├─ definitions.py      画面に並べる選択肢の Enum
 ├─ logger.py           logging を Qt のシグナルへ中継
-├─ cli/                コマンドラインの入口（1 コマンド 1 ファイル）
-│   ├─ common.py           共通の引数・ログ処理
-│   ├─ synth.py            ① 1 件合成
-│   ├─ batch.py            ② JSON をまとめて合成
-│   ├─ script.py           ③ 台本をまとめて合成
-│   ├─ engines.py          エンジン一覧
-│   └─ doctor.py           環境チェック
+│
+│  ── ここから下は .venvs/common で動く ──
+├─ cli/                コマンドラインの入口
+│   ├─ __main__.py         実行の土台 + サブパーサ定義 + dispatch
+│   └─ commands.py         各コマンドの処理
 ├─ gui/                Model / View / Controller と画面部品
-└─ engine/             CLI / GUI 共用の処理本体
-    ├─ interface.py        ← TTSEngine (ABC)。共通インターフェース
-    ├─ types.py            受け渡すデータクラスと例外
-    ├─ subprocess_engine.py runner をサブプロセスで駆動する実装
-    ├─ registry.py         名前 → TTSEngine
-    ├─ jobs.py             まとめて合成する処理と manifest
-    ├─ script.py           キャスト定義と台本の解釈
-    ├─ runners/            各モデルの仮想環境で動く小さなプログラム
-    │   ├─ interface.py        ← EngineRunner (ABC) と JSONL の通信
-    │   ├─ qwen_runner.py
-    │   ├─ chatterbox_runner.py
-    │   └─ irodori_runner.py
-    ├─ paths.py            入出力フォルダとエンジン環境の解決
-    └─ settings.py         OS 差分 / 例外 / ロガー
+├─ core/               CLI / GUI 共用の処理本体
+│   ├─ interface.py        ← TTSEngine (ABC) と create_engine
+│   ├─ types.py            Capability / EngineSpec / SynthesisResult / 例外
+│   ├─ subprocess_engine.py runner をサブプロセスで駆動する実装
+│   ├─ jobs.py             まとめて合成する処理と manifest（BatchItem 込み）
+│   ├─ script.py           キャスト定義と台本の解釈
+│   ├─ paths.py            入出力フォルダの解決
+│   └─ settings.py         OS 差分 / 例外 / ロガー / サブプロセスのフラグ
+│
+│  ── ここから下は .venvs/engine-* で動く ──
+└─ engine/
+    ├─ _shared/
+    │   ├─ protocol.py      ← 両側が守る契約。SynthesisRequest / Response
+    │   └─ runner_base.py   EngineRunner (ABC) と JSONL のループ
+    ├─ qwen/runner.py
+    ├─ chatterbox/runner.py
+    └─ irodori/runner.py
 ```
+
+`engine_env/<name>/`（環境の定義）と `engine/<name>/`（コード）が同じ名前で
+並ぶので、片方を見ればもう片方の場所が分かる。
+
+## 契約は 1 箇所にある
+
+`engine/_shared/protocol.py` が**両側が守る契約**そのもの。
+親も runner も同じクラスを使うので、片方だけ形が変わることがない。
+
+```python
+@dataclass(frozen=True)
+class SynthesisRequest:      # 親 -> runner
+    text: str
+    output_path: str
+    language: str | None = None
+    ...
+
+@dataclass(frozen=True)
+class SynthesisResponse:     # runner -> 親
+    sample_rate: int
+    duration_sec: float
+    elapsed_sec: float
+    model_id: str | None = None
+```
+
+```
+        core/ ──┐
+                ├──→ engine/_shared/protocol.py
+  engine/*/runner.py ─┘
+```
+
+行の「封筒」（`op` / `id` / `ok`）は 1 行 1 JSON。
+
+```
+runner -> 親  {"op": "ready", "model_id": "..."}
+親 -> runner  {"op": "synthesize", "id": 1, <リクエスト>}
+runner -> 親  {"id": 1, "ok": true, <レスポンス>}
+runner -> 親  {"id": 1, "ok": false, "error": "...", "traceback": "..."}
+親 -> runner  {"op": "shutdown"}
+```
+
+封筒に触るのは `runner_base.serve()` と `core/subprocess_engine.py` の
+**2 箇所だけ**。キーの文字列も `protocol.py` の定数を参照する。
+
+> **`core` は `_shared/runner_base.py` を import してはいけない。**
+> あのモジュールは import した時点で `sys.stdout` を `sys.stderr` に
+> 差し替えるので、親側が巻き込まれると CLI の表示が丸ごと壊れる。
+> 親が使ってよいのは `protocol.py` だけ。回帰テストで担保している
+> (`tests/test_protocol.py::test_importing_core_does_not_hijack_stdout`)。
 
 ## 2 つのインターフェース
 
 名前が似ているが役割が違う。
 
-| | `engine/interface.py` | `engine/runners/interface.py` |
+| | `core/interface.py` | `engine/_shared/runner_base.py` |
 |---|---|---|
 | 抽象 | `TTSEngine` | `EngineRunner` |
 | 動く場所 | 共通層（`.venvs/common`） | 各エンジンの仮想環境 |
@@ -92,11 +134,11 @@ ttstoolkit/
 
 `TTSEngine` は「どのモデルでも同じ呼び方ができる」ための抽象で、
 `EngineRunner` は「どのモデルでも同じ書き方で足せる」ための抽象。
-エンジンを 1 つ増やすときに書くのは後者だけで、共通層は触らない。
+エンジンを 1 つ増やすときに書くのは後者だけで、`core` は触らない。
 
 ```python
-from ttstoolkit.engine.registry import create_engine
-from ttstoolkit.engine.types import SynthesisRequest
+from ttstoolkit.core.interface import create_engine
+from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
 with create_engine("irodori") as engine:
     result = engine.synthesize(
@@ -104,27 +146,16 @@ with create_engine("irodori") as engine:
     )
 ```
 
-## サブプロセスのプロトコル
-
-1 行 1 JSON（JSONL）、UTF-8。
-
-```
-runner -> 親  {"op": "ready", "model_id": "..."}
-親 -> runner  {"op": "synthesize", "id": 1, "text": ..., ...}
-runner -> 親  {"id": 1, "ok": true, "sample_rate": 48000, ...}
-runner -> 親  {"id": 1, "ok": false, "error": "...", "traceback": "..."}
-親 -> runner  {"op": "shutdown"}
-```
-
-壊れやすい箇所と、その対策。
+## 壊れやすい箇所と対策
 
 | 壊れ方 | 対策 |
 |---|---|
-| ライブラリが stdout にログを出して JSON が混ざる | `runners/interface.py` が import 時に `sys.stdout` を `stderr` へ差し替え、退避した本物のハンドルだけで JSON を書く |
+| ライブラリが stdout にログを出して JSON が混ざる | `runner_base.py` が import 時に `sys.stdout` を `stderr` へ差し替え、退避した本物のハンドルだけで JSON を書く |
 | Windows の cp932 で日本語が壊れる | 子プロセスの環境に `PYTHONIOENCODING=utf-8` / `PYTHONUTF8=1` を入れ、パイプも `encoding="utf-8"` で開く |
 | stderr を読まずにパイプが詰まって子が固まる | 専用スレッドで読み続け、末尾 60 行だけ保持する |
 | Windows のパイプ読み取りにタイムアウトを掛けられない | 読み取りをスレッドへ逃がし、`join(timeout)` で打ち切る |
 | runner が死んでも親が待ち続ける | `readline()` が空を返したら終了として扱い、stderr の末尾を添えて報告する |
+| GUI から起動すると子にコンソール窓が開く | `settings.SUBPROCESS_FLAGS`（Windows では `CREATE_NO_WINDOW`）を `Popen` と `run` に渡す |
 
 ## 設計判断
 
@@ -138,7 +169,7 @@ runner -> 親  {"id": 1, "ok": false, "error": "...", "traceback": "..."}
 
 未対応の言語やパラメータは `TTSEngine.validate()` が弾く。これを起動より前に
 効かせたいので、プロセスの起動は最初の `synthesize()` まで遅延する。おかげで
-「Irodori に英語」は 0.14 秒でエラーになる（起動していたら 18 秒かかる）。
+「Irodori に英語」は 0.13 秒でエラーになる（起動していたら 18 秒かかる）。
 
 ### 未対応パラメータは黙殺せずエラーにする
 
@@ -169,7 +200,7 @@ runner は別のカレントディレクトリで動く（Irodori は clone の�
 
 ```
 gui/
-├─ main_model.py       engine の呼び出しと QSettings への保存
+├─ main_model.py       core の呼び出しと QSettings への保存
 ├─ main_view.py        タブとログの組み立て
 ├─ main_controller.py  View と Model の接続
 ├─ task_runner.py      時間のかかる処理を回す QThread
@@ -186,7 +217,7 @@ gui/
 - **View** は Qt のウィジェットだけを持ちます。Model を知らず、Controller への
   通知はクラス変数の `Signal` (`on_*_signal`)。ダイアログは View 側
   (`show_confirm_dialog()` は bool を返すだけ)。
-- **Model** は `engine` パッケージの呼び出しと `QSettings` への保存を持ちます。
+- **Model** は `core` の呼び出しと `QSettings` への保存を持ちます。
   Qt のウィジェットには触りません。
 - **Controller** が両方を作り、`__setup_connections()` で View の Signal を
   `__on_*` ハンドラに繋ぎます。Controller の存在は他のどこも知りません。
@@ -207,24 +238,31 @@ Run 押下
 
 合成は `TaskRunner` (QThread) で回します。生成中の 1 件を途中で止める手段は
 どのモデルにも無いので、キャンセルは**次の 1 件に入る前**に効く協調式です
-(`engine/jobs.py` が `is_canceled()` をループの先頭で見ている)。
+(`core/jobs.py` が `is_canceled()` をループの先頭で見ている)。
 
 ## import のルール
 
-`ttstoolkit` は `.venvs/common` に editable で入るので、共通層と GUI は
-そのまま import できます。runner だけは別の仮想環境で動くため、
+`ttstoolkit` は `.venvs/common` に editable で入るので、`cli` / `gui` / `core`
+はそのまま import できます。runner だけは別の仮想環境で動くため、
 `SubprocessEngine` が `PYTHONPATH` に `python/` を渡しています。
 **コードから `sys.path` は変更しません。**
 
 | 場所 | 書き方 |
 | --- | --- |
-| `gui/` の中で兄弟を参照 | 絶対 (`from ttstoolkit.gui.main_model import ...`) |
-| サブパッケージをまたぐ参照 | 絶対 (`from ttstoolkit.engine.registry import ...`) |
-| `cli/` から共通処理 | 絶対 (`from ttstoolkit.cli.common import ...`) |
+| どこからでも | 絶対 (`from ttstoolkit.core.jobs import run_script`) |
+| runner が契約を使う | 絶対 (`from ttstoolkit.engine._shared.protocol import ...`) |
 
 `__init__.py` は置きません（暗黙の名前空間パッケージ）。そのため
 `from ttstoolkit import create_engine` のような再エクスポートは無く、
-常に定義元のモジュールから import します。
+常に定義元のモジュールから import します。`python -m ttstoolkit.cli` は
+名前空間パッケージの中の `__main__.py` として解決されるので、これでも動きます。
+
+関数の中で import しているのは 2 箇所だけで、どちらも理由があります。
+
+| 場所 | 理由 |
+|---|---|
+| runner の `import torch` | `runner_base` より先に読み込まれると stdout の退避が間に合わない |
+| `create_engine` の `SubprocessEngine` | あちらが `TTSEngine` を継承するので、先頭で import すると循環する |
 
 ## 見た目
 
@@ -253,9 +291,10 @@ Run 押下
 
 | したいこと | 触る場所 |
 |---|---|
-| エンジンを 1 つ足す | `engine_env/<name>/`、`engine/runners/<name>_runner.py`、`tool_config.ENGINE_DEFINITIONS` |
-| 共通 IF に項目を足す | `engine/types.py` → `engine/interface.py` の `validate()` → 各 runner |
-| HTTP バックエンドを足す | `engine/interface.py` を実装し、`engine/registry.py` に分岐を 1 つ |
+| エンジンを 1 つ足す | `engine_env/<name>/`、`engine/<name>/runner.py`、`tool_config.ENGINE_DEFINITIONS` |
+| 共通 IF に項目を足す | `engine/_shared/protocol.py` → `core/interface.py` の `validate()` → 各 runner |
+| HTTP バックエンドを足す | `core/interface.py` の `TTSEngine` を実装し、`create_engine` に分岐を 1 つ |
+| CLI にコマンドを足す | `cli/commands.py` に処理、`cli/__main__.py` にサブパーサ |
 | GUI にタブを足す | `gui/widgets/<name>_tab.py` → `main_view` / `main_model` / `main_controller` |
 
 手順は [../instructions/code_guide.md](../instructions/code_guide.md) にあります。

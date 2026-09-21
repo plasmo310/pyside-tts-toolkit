@@ -33,8 +33,8 @@ import re
 import tomllib
 from dataclasses import dataclass, field
 
-from ttstoolkit.engine.settings import TTSToolkitError
-from ttstoolkit.engine.types import SynthesisRequest
+from ttstoolkit.core.settings import TTSToolkitError
+from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
 # 「話者: 台詞」。話者名のあとに省略可能な [key=value, ...] を書ける。
 # コロンは半角でも全角でもよい。

@@ -19,14 +19,14 @@ from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Self
 
-from ttstoolkit.engine.types import (
+from ttstoolkit.core.types import (
     Capability,
     EngineSpec,
-    SynthesisRequest,
     SynthesisResult,
     UnsupportedLanguageError,
     UnsupportedParameterError,
 )
+from ttstoolkit.engine._shared.protocol import SynthesisRequest
 
 
 class TTSEngine(ABC):
@@ -150,3 +150,30 @@ class TTSEngine(ABC):
     ) -> None:
         """with 文を抜ける。プロセスを確実に終了させる。"""
         self.close()
+
+
+def create_engine(name: str, verbose: bool = False) -> TTSEngine:
+    """エンジン名から `TTSEngine` を作る。呼び出し側は with 文で使う。
+
+    将来 HTTP バックエンド (Irodori-TTS-Server のような OpenAI 互換
+    サーバ) を足す場合は、ここに分岐を 1 つ増やすだけで済む。
+    呼び出し側と `TTSEngine` のインターフェースは変わらない。
+
+    `SubprocessEngine` を関数の中で import しているのは循環を避ける
+    ため。あちらはこのモジュールの `TTSEngine` を継承するので、
+    先頭で import すると行きと帰りができてしまう。
+
+    Args:
+        name: エンジン名。
+        verbose: runner の stderr をそのままログへ流すか。
+
+    Returns:
+        TTSEngine: 生成したエンジン。
+
+    Raises:
+        EngineNotFoundError: 定義されていない名前のとき。
+    """
+    from ttstoolkit.core.subprocess_engine import SubprocessEngine
+    from ttstoolkit.tool_config import get_spec
+
+    return SubprocessEngine(get_spec(name), verbose=verbose)

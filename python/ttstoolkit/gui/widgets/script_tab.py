@@ -1,7 +1,7 @@
 """キャラクター台本からまとめて音声を作るタブ。
 
-`ttstoolkit.cli.script` と同じことを画面から指定できるようにする。
-台本の書き方は `ttstoolkit.engine.script` の docstring を参照。
+`ttstoolkit.cli` の script と同じことを画面から指定できるようにする。
+台本の書き方は `ttstoolkit.core.script` の docstring を参照。
 
 Run を押すと入力内容を `ScriptTabRequest` に詰めて emit するだけで、
 合成そのものは Controller / Model の担当。
@@ -14,7 +14,7 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
-from ttstoolkit.engine.paths import OUTPUT_DIR, SCRIPT_DIR
+from ttstoolkit.core.paths import OUTPUT_DIR, SCRIPT_DIR
 from ttstoolkit.gui.widgets.option_rows import (
     DirPathRow,
     FilePathRow,

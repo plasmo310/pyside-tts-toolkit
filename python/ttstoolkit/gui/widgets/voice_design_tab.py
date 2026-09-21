@@ -17,9 +17,9 @@ from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
+from ttstoolkit.core.paths import VOICES_DIR
+from ttstoolkit.core.types import Capability
 from ttstoolkit.definitions import EngineType
-from ttstoolkit.engine.paths import VOICES_DIR
-from ttstoolkit.engine.types import Capability
 from ttstoolkit.gui.widgets.option_rows import (
     DirPathRow,
     EngineOptionsGroup,
