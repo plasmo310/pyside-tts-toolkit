@@ -22,7 +22,7 @@
 ### 2. venv を作る
 
 ```powershell
-cd python\engines\chatterbox
+cd engine_env\chatterbox
 mise exec -- uv sync
 ```
 
@@ -30,14 +30,14 @@ mise exec -- uv sync
 
 ```powershell
 cd ..\..\..
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine chatterbox --text "こんにちは。" --lang ja --out outputs\cb.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e chatterbox -t "こんにちは。" -l ja -O cb.wav
 ```
 
 初回はモデル重みのダウンロードが入る。
 
 ## この環境で入れている調整
 
-`engines/chatterbox/pyproject.toml` は公式の指示（`pip install chatterbox-tts`）
+`engine_env/chatterbox/pyproject.toml` は公式の指示（`pip install chatterbox-tts`）
 そのままではなく、2 点の調整を入れている。どちらも理由がある。
 
 ### 調整 1: PyPI ではなく GitHub から入れる
@@ -64,8 +64,8 @@ dependencies = [
 ]
 ```
 
-V2 で構わない場合は `"chatterbox-tts==0.1.7"` に戻し、`engines.toml` の
-`t3_model` を `"v2"` にすればよい（git が不要になる）。
+V2 で構わない場合は `"chatterbox-tts==0.1.7"` に戻し、`tool_config.py` の
+`options["t3_model"]` を `"v2"` にすればよい（git が不要になる）。
 
 ### 調整 2: torch のピンを上書きする
 
@@ -111,17 +111,24 @@ arch_list ['sm_50','sm_60','sm_61','sm_70','sm_75','sm_80','sm_86','sm_90','sm_1
 CUDA available: True
 ```
 
-合成も正常に動作することを確認済み。`tts doctor` で同じ内容を確認できる。
+合成も正常に動作することを確認済み。`ttstoolkit.cli.doctor` で同じ内容を
+確認できる。
 
-## 設定 (`python/engines.toml`)
+## 設定 (`python/ttstoolkit/tool_config.py`)
 
-```toml
-[chatterbox.options]
-t3_model = "v3"
-device = "cuda"
+`ENGINE_DEFINITIONS["chatterbox"].options` にある。
+
+```python
+options={
+    "t3_model": "v3",
+    "device": "cuda",
+    "exaggeration": 0.5,
+    "cfg_weight": 0.5,
+    "temperature": 0.8,
+}
 ```
 
-runner 側では次も読む（`engines.toml` に書けば有効になる）。
+生成の味付けは次の 3 つで変える。
 
 | キー | 既定 | 説明 |
 |---|---:|---|
@@ -134,10 +141,10 @@ runner 側では次も読む（`engines.toml` に書けば有効になる）。
 参照音声を渡すだけでよい。書き起こしは不要。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine chatterbox `
-    --text "参照音声からクローンした声で話しています。" --lang ja `
-    --ref samples\ref\alice.wav --seed 7 `
-    --out outputs\cb_clone.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e chatterbox `
+    -t "参照音声からクローンした声で話しています。" -l ja `
+    -r alice.wav --seed 7 `
+    -O cb_clone.wav
 ```
 
 ## VRAM の目安
@@ -160,13 +167,12 @@ MIT ライセンスで商用利用は可能だが、この仕様は把握して�
 
 ### `no kernel image is available for execution on the device`
 
-torch の上書きが効いていない。`tts doctor` で torch のバージョンを確認する。
+torch の上書きが効いていない。`ttstoolkit.cli.doctor` で torch のバージョンを確認する。
 `2.6.0` と出ていたら venv を作り直す。
 
 ```powershell
-cd python\engines\chatterbox
-Remove-Item -Recurse -Force .venv
-mise exec -- uv sync
+Remove-Item -Recurse -Force .venvs\engine-chatterbox
+pwsh scripts\win\setup_engines.ps1 -Targets chatterbox
 ```
 
 ### `torch.backends.cuda.sdp_kernel() is deprecated` という警告

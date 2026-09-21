@@ -1,0 +1,23 @@
+# 英語版のキャスト定義。
+#
+# Irodori は英語を出せないので、同じキャラクターを qwen / chatterbox に
+# 割り当てる。声を揃えるには、日本語版で作ったマスター音声を
+# reference_audio に指定する（作り方は docs/guide/original-voice.md）。
+
+[voices."Narrator"]
+engine = "qwen"
+language = "en"
+seed = 100
+
+[voices."Reimu"]
+engine = "qwen"
+# reference_audio = "../voices/reimu_master.wav"
+# reference_text = "こんにちは。私はこのキャラクターの声です。"
+language = "en"
+seed = 42
+
+[voices."Marisa"]
+engine = "chatterbox"
+# reference_audio = "../voices/marisa_master.wav"
+language = "en"
+seed = 7

@@ -10,16 +10,18 @@ __pycache__/
 .venv/
 
 # ベンダーリポジトリ（セットアップ手順で clone し直せる）
-python/engines/irodori/vendor/
+engine_env/irodori/vendor/
 
-# 生成物・声素材（サイズが大きく再現不能なため追跡しない）
-outputs/
-voices/
-samples/ref/*
-!samples/ref/.gitkeep
+# 生成物（再生成できる）
+output/*
+!output/.gitkeep
+
+# 声素材（サイズが大きく再現不能なため追跡しない）
+input/voices/*
+!input/voices/.gitkeep
 
 # モデルキャッシュ
 .cache/
 
-# references
+# 参考にしている別リポジトリ
 references/

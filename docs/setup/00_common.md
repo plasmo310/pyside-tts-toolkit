@@ -66,7 +66,7 @@ mise exec -- python --version   # Python 3.12.x
 
 ```
 .venvs/
-  common             共通層。tts コマンド。torch なし
+  common             共通層・CLI・GUI。torch なし
   engine-qwen        Qwen3-TTS       transformers 4.57.3
   engine-chatterbox  Chatterbox      transformers 5.2.0
   engine-irodori     Irodori-TTS     transformers 5.12.x
@@ -75,7 +75,7 @@ mise exec -- python --version   # Python 3.12.x
 置き場は各プロジェクトの `mise.toml` が `UV_PROJECT_ENVIRONMENT` で指定している。
 
 ```toml
-# python/engines/qwen/mise.toml
+# engine_env/qwen/mise.toml
 [env]
 UV_PROJECT_ENVIRONMENT = "{{env.TTS_REPO_ROOT}}/.venvs/engine-qwen"
 ```
@@ -87,7 +87,7 @@ UV_PROJECT_ENVIRONMENT = "{{env.TTS_REPO_ROOT}}/.venvs/engine-qwen"
 ## 3. 一括セットアップ
 
 ```powershell
-pwsh scripts\setup_engines.ps1
+pwsh scripts\win\setup_engines.ps1
 ```
 
 これが行うこと:
@@ -96,12 +96,12 @@ pwsh scripts\setup_engines.ps1
 2. `.venvs/common` に共通層を入れる（torch は入らない。数秒で終わる）
 3. `.venvs/engine-qwen` を作る
 4. `.venvs/engine-chatterbox` を作る
-5. Irodori-TTS を `python/engines/irodori/vendor/Irodori-TTS` へ clone し、venv を作る
+5. Irodori-TTS を `engine_env/irodori/vendor/Irodori-TTS` へ clone し、venv を作る
 
 エンジンを選んで実行することもできる。
 
 ```powershell
-pwsh scripts\setup_engines.ps1 -Engines common,chatterbox
+pwsh scripts\win\setup_engines.ps1 -Targets common,chatterbox
 ```
 
 手作業で進めたい場合や、どこかで失敗した場合は各エンジンの手順書を参照。
@@ -117,13 +117,13 @@ pwsh scripts\setup_engines.ps1 -Engines common,chatterbox
 
 ```powershell
 # 環境の健全性チェック
-.\.venvs\common\Scripts\python.exe -m tts_sample doctor
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.doctor
 
 # エンジン一覧と対応機能
-.\.venvs\common\Scripts\python.exe -m tts_sample engines
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.engines
 
 # 1 件合成（最も軽い chatterbox から試すとよい）
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine chatterbox --text "こんにちは。" --lang ja --out outputs\hello.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e chatterbox -t "こんにちは。" -l ja -O hello.wav
 ```
 
 `doctor` は各エンジンの venv の中で torch を読み込み、CUDA が使えるか、
@@ -133,39 +133,70 @@ GPU のアーキテクチャに対応したビルドかまで確認する。
 
 | パス | 内容 |
 |---|---|
-| `python/` | Python のコードだけ。共通層・各エンジンの runner・テスト |
-| `docs/setup/` | この手順書 |
-| `scripts/` | セットアップ用の PowerShell スクリプト |
-| `samples/` | バッチ入力の例と参照音声の置き場（`samples/ref/` は git 管理外） |
-| `outputs/` | 生成した wav の置き場（git 管理外） |
+| `python/ttstoolkit/` | ツール本体。CLI・GUI・エンジン |
+| `engine_env/` | 各エンジンの仮想環境を作るための定義 |
+| `.venvs/` | 仮想環境の実体（git 管理外） |
+| `input/voices/` | 参照音声の置き場（git 管理外） |
+| `input/script/` | キャスト定義と台本 |
+| `input/batch/` | バッチ入力 JSON の例 |
+| `output/` | 生成した wav の置き場（git 管理外） |
+| `resources/ui/` | GUI の stylesheet とアイコン素材 |
+| `scripts/win/` | セットアップと GUI 起動のスクリプト |
+| `tests/` | 共通層のテスト（モデル不要） |
+| `docs/` | ドキュメント一式 |
 
-`.\.venvs\common\Scripts\python.exe -m tts_sample` は長いので alias を張ると楽になる。
+`.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.<command>` は長いので、
+サブコマンド名を受け取る関数を 1 つ作っておくと楽になる
+（`Set-Alias` は引数を渡せないため関数にする）。
 以降の例では `tts` と書く。
 
 ```powershell
-function tts { & "$PWD\.venvs\common\Scripts\python.exe" -m tts_sample @args }
+function tts {
+    $exe = "$PWD\.venvs\common\Scripts\python.exe"
+    & $exe -m "ttstoolkit.cli.$($args[0])" @($args | Select-Object -Skip 1)
+}
 ```
 
 ## 5. 使い方
 
-### 1 件合成
+### GUI
+
+最低限の操作は画面からできる。
 
 ```powershell
-tts synth --engine qwen --text "こんにちは。" --lang ja --out outputs\a.wav
-
-# 長文はファイルから
-tts synth --engine irodori --text-file script.txt --lang ja --out outputs\b.wav
-
-# 参照音声から声をクローン
-tts synth --engine qwen --text "おはようございます。" --lang ja `
-    --ref samples\ref\alice.wav --ref-text "参照音声で話している内容の書き起こし" `
-    --out outputs\c.wav
-
-# 再現性のためにシードを固定
-tts synth --engine chatterbox --text "テスト" --lang ja --seed 42 --out outputs\d.wav
+scripts\win\LaunchApp.bat
 ```
 
-`--ref-text` は Qwen3-TTS でのみ使われる。Qwen のクローンは参照音声の書き起こしがある
+タブは 3 つ。
+
+| タブ | すること |
+|---|---|
+| Synthesis | テキストを 1 件合成する |
+| Voice Design | 文章から声を作り、`input/voices/` に残す |
+| Script | キャスト定義と台本からまとめて合成する |
+
+合成は別スレッドで走り、進捗は下のログ欄に流れる。入力値とウィンドウの
+位置は終了時に保存され、次の起動で戻る（File > Clear Saved Settings で
+既定値に戻せる）。詳しくは [../gui/usage.md](../gui/usage.md)。
+
+### 1 件合成（CLI）
+
+```powershell
+tts synth -e qwen -t "こんにちは。" -l ja -O a.wav
+
+# 長文はファイルから
+tts synth -e irodori -f script.txt -l ja -O b.wav
+
+# 参照音声から声をクローン
+tts synth -e qwen -t "おはようございます。" -l ja `
+    -r alice.wav --reference-text "参照音声で話している内容の書き起こし" `
+    -O c.wav
+
+# 再現性のためにシードを固定
+tts synth -e chatterbox -t "テスト" -l ja --seed 42 -O d.wav
+```
+
+`--reference-text` は Qwen3-TTS でのみ使われる。Qwen のクローンは参照音声の書き起こしがある
 ときに最も品質が高い（ICL モード）。省略すると話者埋め込みのみのモードに落ちる。
 Chatterbox と Irodori は書き起こし不要。
 
@@ -174,7 +205,7 @@ Chatterbox と Irodori は書き起こし不要。
 モデルを 1 回だけロードして複数件をまとめて処理する。
 
 ```powershell
-tts batch --engine qwen --input samples\input.ja.json --outdir outputs\batch
+tts batch -e qwen sample.ja.json -o output\batch
 ```
 
 入力 JSON:
@@ -198,14 +229,14 @@ tts batch --engine qwen --input samples\input.ja.json --outdir outputs\batch
 ### Python から使う
 
 ```python
-from pathlib import Path
-from tts_sample import create_engine, SynthesisRequest
+from ttstoolkit.engine.registry import create_engine
+from ttstoolkit.engine.types import SynthesisRequest
 
 with create_engine("irodori") as engine:
     result = engine.synthesize(
         SynthesisRequest(
             text="こんにちは。",
-            output_path=Path("outputs/hello.wav"),
+            output_path="output/hello.wav",
             language="ja",
             seed=42,
         )
@@ -217,13 +248,17 @@ with create_engine("irodori") as engine:
 
 ## 6. 設定
 
-`python/engines.toml` にエンジンの定義がある。よく触るのは各エンジンの `options`。
+`python/ttstoolkit/tool_config.py` の `ENGINE_DEFINITIONS` にエンジンの定義が
+ある。よく触るのは各エンジンの `options`。
 
-```toml
-[qwen.options]
-base_model = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"   # VRAM が足りなければ 0.6B に
-dtype = "bfloat16"
-device = "cuda:0"
+```python
+options={
+    # VRAM が足りなければ 0.6B に
+    "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    "dtype": "bfloat16",
+    "device": "cuda:0",
+    ...
+},
 ```
 
 VRAM 不足、話者の変更、生成パラメータの調整はここで行う。
@@ -238,9 +273,10 @@ mise 経由で実行したときにだけ効く。
 
 ### `runner が JSON 以外を stdout に出力しました`
 
-エンジン側のライブラリが標準出力にログを出している。`runner.py` は起動時に
-`sys.stdout` を `stderr` へ退避しているので通常は起きないが、自分で
-`runner.py` に `print()` を足した場合はそれが原因。ログは `log()` を使う。
+エンジン側のライブラリが標準出力にログを出している。runner は
+`ttstoolkit/engine/runners/interface.py` を import した時点で `sys.stdout` を
+`stderr` へ退避しているので通常は起きない。自分で runner に `print()` を
+足した場合はそれが原因なので、`log()` を使う。
 
 ### 日本語が文字化けする
 
@@ -253,20 +289,20 @@ mise 経由で実行したときにだけ効く。
 
 | 変数 | 既定 | 用途 |
 |---|---:|---|
-| `TTS_SAMPLE_READY_TIMEOUT` | 1800 | モデルのロード待ち（初回は重みの DL を含む） |
-| `TTS_SAMPLE_SYNTH_TIMEOUT` | 900 | 1 件あたりの合成 |
+| `TTS_READY_TIMEOUT` | 1800 | モデルのロード待ち（初回は重みの DL を含む） |
+| `TTS_SYNTH_TIMEOUT` | 900 | 1 件あたりの合成 |
 
 ### エンジンの詳細ログを見たい
 
 ```powershell
-tts synth --engine qwen --text "テスト" --out outputs\x.wav --verbose
+tts synth -e qwen -t "テスト" -O x.wav --verbose
 ```
 
 `--verbose` でエンジンの stderr がそのまま流れる。
 
 ### VRAM が足りない（OOM）
 
-- Qwen3-TTS: `engines.toml` の `base_model` / `custom_voice_model` を 0.6B に変える
+- Qwen3-TTS: `tool_config.py` の `base_model` / `custom_voice_model` を 0.6B に変える
 - 複数エンジンを同時に動かさない（`with` を抜ければ解放される）
 - `nvidia-smi` で他のプロセスが VRAM を使っていないか確認する
 
@@ -275,8 +311,7 @@ tts synth --engine qwen --text "テスト" --out outputs\x.wav --verbose
 共通層のプロトコルはモデル無しで検証できる。
 
 ```powershell
-cd python
-.\.venvs\common\Scripts\python.exe -m pytest tests\ -q
+.\.venvs\common\Scripts\python.exe -m pytest -q
 ```
 
 `tests/fake_runner.py` が本物のエンジンと同じ規約でふるまうダミーになっていて、

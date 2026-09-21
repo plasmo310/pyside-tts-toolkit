@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>python-tts-sample</title>
+<title>TTS Toolkit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
@@ -579,9 +579,10 @@
 
 <nav>
   <div class="wrap">
-    <span class="mark">python-tts-sample</span>
+    <span class="mark">TTS Toolkit</span>
     <a href="#why">設計</a>
     <a href="#setup">セットアップ</a>
+    <a href="#gui">GUI</a>
     <a href="#usage">使い方</a>
     <a href="#voice">声を作る</a>
     <a href="#script">台本</a>
@@ -595,7 +596,7 @@
 <header>
   <div class="wrap">
     <div class="eyebrow">ローカル TTS ／ 商用利用可 ／ 従量課金なし</div>
-    <h1>python-tts-sample</h1>
+    <h1>TTS Toolkit</h1>
     <p class="lede">
       ローカルで動く 3 つの音声合成モデルを、<b>同じコマンド・同じ引数</b>で呼べるようにしたサンプル。
       依存が互いに衝突する 3 つのモデルをプロセス境界で隔離し、共通のラッパー越しに扱う。
@@ -681,7 +682,7 @@
 
     <div class="arch">
       <div class="top">
-        <div class="t">tts コマンド</div>
+        <div class="t">CLI ／ GUI</div>
         <div class="s">.venvs/common ／ torch に依存しない共通層</div>
       </div>
       <div class="pipe"></div>
@@ -748,11 +749,11 @@
           <div class="head">PowerShell</div>
 <pre><span class="p">&gt; </span>git clone &lt;このリポジトリ&gt;
 <span class="p">&gt; </span>cd python-tts-sample
-<span class="p">&gt; </span>pwsh python\scripts\setup_engines.ps1</pre>
+<span class="p">&gt; </span>pwsh scripts\win\setup_engines.ps1</pre>
         </div>
         <p>
           エンジンを選んで実行することもできる：<br>
-          <code>pwsh python\scripts\setup_engines.ps1 -Engines common,chatterbox</code>
+          <code>pwsh scripts\win\setup_engines.ps1 -Targets common,chatterbox</code>
         </p>
       </li>
 
@@ -761,24 +762,23 @@
         <p>各エンジンの仮想環境の中で torch を読み込み、GPU のアーキテクチャに対応したビルドかまで見る。</p>
         <div class="cmd">
           <div class="head">tts doctor</div>
-<pre><span class="p">&gt; </span>cd python
-<span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m tts_sample doctor
+<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.doctor
 
 <span class="out">== GPU ==
 NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
 
-== エンジン ==
+== Engines ==
 
 [chatterbox] ResembleAI/chatterbox (multilingual v3)
-  torch 2.7.1+cu128 / CUDA OK / NVIDIA GeForce RTX 5070
+  torch 2.7.1+cu128 / CUDA ok / NVIDIA GeForce RTX 5070
 
 [irodori] Aratako/Irodori-TTS-v4.1-Small
-  torch 2.10.0+cu128 / CUDA OK / NVIDIA GeForce RTX 5070
+  torch 2.10.0+cu128 / CUDA ok / NVIDIA GeForce RTX 5070
 
 [qwen] Qwen/Qwen3-TTS-12Hz-1.7B-Base
-  torch 2.11.0+cu128 / CUDA OK / NVIDIA GeForce RTX 5070</span></pre>
+  torch 2.11.0+cu128 / CUDA ok / NVIDIA GeForce RTX 5070</span></pre>
         </div>
-        <p><code>CUDA OK</code> が 3 つ出れば準備完了。</p>
+        <p><code>CUDA ok</code> が 3 つ出れば準備完了。</p>
       </li>
 
       <li>
@@ -786,18 +786,83 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
         <p>最も軽い chatterbox から試すのが早い。</p>
         <div class="cmd">
           <div class="head">PowerShell</div>
-<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m tts_sample synth <span class="f">--engine</span> chatterbox <span class="f">--text</span> <span class="s">"こんにちは。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\hello.wav
+<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth <span class="f">-e</span> chatterbox <span class="f">-t</span> <span class="s">"こんにちは。"</span> <span class="f">-l</span> ja <span class="f">-O</span> hello.wav
 
-<span class="out">[chatterbox] D:\...\outputs\hello.wav
-  model=ResembleAI/chatterbox multilingual v3
-  24000 Hz / 2.52 秒 / 生成 4.22 秒</span></pre>
+<span class="out">[info] Engine chatterbox is ready (ResembleAI/chatterbox multilingual v3)
+wrote D:\...\output\hello.wav
+  model    ResembleAI/chatterbox multilingual v3
+  audio    24000 Hz / 2.96s
+  took     5.39s</span></pre>
         </div>
         <p>
-          以降のコマンドは <code>python</code> ディレクトリから実行する。
-          <code>function tts { &amp; "$PWD\.venvs\common\Scripts\python.exe" -m tts_sample @args }</code> を定義すると楽になる。
+          以降のコマンドは<b>リポジトリのルート</b>で実行する。
+          サブコマンド名を受け取る関数を定義しておくと楽になる
+          （<code>Set-Alias</code> は引数を渡せないので関数にする）。
         </p>
+        <div class="cmd">
+          <div class="head">PowerShell</div>
+<pre><span class="p">&gt; </span><span class="f">function</span> tts {
+<span class="p">&gt;&gt; </span>    $exe = <span class="s">&quot;$PWD\.venvs\common\Scripts\python.exe&quot;</span>
+<span class="p">&gt;&gt; </span>    &amp; $exe -m <span class="s">&quot;ttstoolkit.cli.$($args[0])&quot;</span> @($args | Select-Object -Skip 1)
+<span class="p">&gt;&gt; </span>}</pre>
+        </div>
       </li>
     </ol>
+  </div>
+</section>
+
+<!-- =============================================================== GUI -->
+<section id="gui">
+  <div class="wrap">
+    <div class="kicker">GUI</div>
+    <h2>画面から使う</h2>
+    <p>
+      最低限の操作は GUI (PySide6) からできる。合成そのものは CLI と同じ
+      <code>ttstoolkit.engine</code> を呼ぶだけなので、
+      <b>画面からできることと CLI からできることは常に一致する</b>。
+    </p>
+
+    <div class="cmd">
+      <div class="head">起動</div>
+<pre><span class="p">&gt; </span>scripts\win\LaunchApp.bat</pre>
+    </div>
+
+    <div class="scroll">
+      <table class="card">
+        <thead><tr><th>タブ</th><th>すること</th><th>CLI では</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Synthesis</b></td>
+            <td>テキストを 1 件合成する。声はプリセット／クローン／文章から選ぶ</td>
+            <td class="mono">tts synth</td>
+          </tr>
+          <tr>
+            <td><b>Voice Design</b></td>
+            <td>文章から声を作り <code>input/voices/</code> に残す</td>
+            <td class="mono">tts synth --voice-design</td>
+          </tr>
+          <tr>
+            <td><b>Script</b></td>
+            <td>キャスト定義と台本からまとめて合成する</td>
+            <td class="mono">tts script</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      合成は別スレッドで走るので画面は固まらない。進捗は下のログ欄に流れ、
+      内容は CLI が標準エラーへ出しているものと同じ。入力値とウィンドウの
+      位置・サイズは終了時に保存され、次の起動で戻る。
+    </p>
+
+    <div class="note">
+      <b>キャンセルは次の台詞から効く</b>
+      <p>
+        生成中の 1 件を途中で止める手段がモデル側に無いため、
+        <code>Cancel</code> は<b>次の 1 件に入る前</b>に効く協調式にしている。
+      </p>
+    </div>
   </div>
 </section>
 
@@ -811,33 +876,33 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
     <div class="cmd">
       <div class="head">tts synth</div>
 <pre><span class="cm"># テキストを直接</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--text</span> <span class="s">"こんにちは。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> qwen <span class="f">-t</span> <span class="s">"こんにちは。"</span> <span class="f">-l</span> ja <span class="f">-O</span> a.wav
 
 <span class="cm"># 長い台本はファイルから（UTF-8）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text-file</span> script.txt <span class="f">--lang</span> ja <span class="f">--out</span> outputs\b.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-f</span> script.txt <span class="f">-l</span> ja <span class="f">-O</span> b.wav
 
 <span class="cm"># 結果を再現したいときはシードを固定</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> chatterbox <span class="f">--text</span> <span class="s">"テスト"</span> <span class="f">--lang</span> ja <span class="f">--seed</span> 42 <span class="f">--out</span> outputs\c.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> chatterbox <span class="f">-t</span> <span class="s">"テスト"</span> <span class="f">-l</span> ja <span class="f">--seed</span> 42 <span class="f">-O</span> c.wav
 
 <span class="cm"># 話速の指定は irodori のみ（1.0 が等速、小さいほどゆっくり）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text</span> <span class="s">"ゆっくり話します。"</span> <span class="f">--lang</span> ja <span class="f">--speed</span> 0.8 <span class="f">--out</span> outputs\slow.wav</pre>
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-t</span> <span class="s">"ゆっくり話します。"</span> <span class="f">-l</span> ja <span class="f">--speed</span> 0.8 <span class="f">-O</span> slow.wav</pre>
     </div>
 
     <h3>声をクローンする</h3>
-    <p>参照音声を <code>--ref</code> で渡すだけ。3 エンジンとも対応している。</p>
+    <p>参照音声を <code>-r</code> で渡すだけ。3 エンジンとも対応している。</p>
     <div class="cmd">
-      <div class="head">tts synth --ref</div>
+      <div class="head">tts synth -r</div>
 <pre><span class="cm"># chatterbox / irodori は参照音声だけでよい</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> chatterbox <span class="f">--text</span> <span class="s">"クローンした声です。"</span> <span class="f">--lang</span> ja \
-      <span class="f">--ref</span> samples\ref\alice.wav <span class="f">--out</span> outputs\clone.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> chatterbox <span class="f">-t</span> <span class="s">"クローンした声です。"</span> <span class="f">-l</span> ja <span class="c">`</span>
+      <span class="f">-r</span> alice.wav <span class="f">-O</span> clone.wav
 
 <span class="cm"># qwen は書き起こしも渡すと品質が上がる（ICL モード）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--text</span> <span class="s">"おはようございます。"</span> <span class="f">--lang</span> ja \
-      <span class="f">--ref</span> samples\ref\alice.wav <span class="f">--ref-text</span> <span class="s">"こんにちは。音声合成のテストです。"</span> \
-      <span class="f">--out</span> outputs\clone.wav</pre>
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> qwen <span class="f">-t</span> <span class="s">"おはようございます。"</span> <span class="f">-l</span> ja <span class="c">`</span>
+      <span class="f">-r</span> alice.wav <span class="f">--reference-text</span> <span class="s">"こんにちは。音声合成のテストです。"</span> <span class="c">`</span>
+      <span class="f">-O</span> clone.wav</pre>
     </div>
     <p>
-      <code>--ref-text</code> は <b>Qwen でのみ使われる</b>。省略すると話者埋め込みだけを使う
+      <code>--reference-text</code> は <b>Qwen でのみ使われる</b>。省略すると話者埋め込みだけを使う
       モードに自動で落ちるが、そのぶん似なくなる。参照音声の長さの目安は次の通り。
     </p>
 
@@ -859,18 +924,20 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
     <p>モデルを 1 回だけ読み込んで全件を処理するので、1 件ずつ呼ぶより速い。</p>
     <div class="cmd">
       <div class="head">tts batch</div>
-<pre><span class="p">&gt; </span>tts batch <span class="f">--engine</span> qwen <span class="f">--input</span> samples\input.ja.json <span class="f">--outdir</span> outputs\batch
+<pre><span class="p">&gt; </span>tts batch <span class="f">-e</span> qwen sample.ja.json <span class="f">-o</span> output\batch
 
-<span class="out">[1/3] line-001 line-001.wav (3.83 秒)
-[2/3] line-002 line-002.wav (3.41 秒)
-[3/3] line-003 line-003.wav (4.42 秒)
-
-3/3 件成功。manifest: D:\...\outputs\batch\manifest.json</span></pre>
+<span class="out">[info] 3 items from D:\...\input\batch\sample.ja.json
+[info] Engine chatterbox is ready (ResembleAI/chatterbox multilingual v3)
+[1/3] line-001   2.80s  こんにちは。今日はいい天気ですね。
+[2/3] line-002   2.60s  音声合成のバッチ処理を試しています。
+[3/3] line-003   4.00s  モデルは常駐しているので、二件目以降は速く生成…
+[info] wrote output\batch\manifest.json
+[info] 3/3 succeeded</span></pre>
     </div>
 
     <h4>入力 JSON</h4>
     <div class="cmd">
-      <div class="head">samples/input.ja.json</div>
+      <div class="head">input/batch/sample.ja.json</div>
 <pre>[
   {<span class="s">"id"</span>: <span class="s">"line-001"</span>, <span class="s">"text"</span>: <span class="s">"こんにちは。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>},
   {<span class="s">"id"</span>: <span class="s">"line-002"</span>, <span class="s">"text"</span>: <span class="s">"今日はいい天気ですね。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>, <span class="s">"seed"</span>: 42},
@@ -892,7 +959,7 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
       音声の長さを知りたいときに使える。
     </p>
     <div class="cmd">
-      <div class="head">outputs/batch/manifest.json</div>
+      <div class="head">output/batch/manifest.json</div>
 <pre>{
   <span class="s">"engine"</span>: <span class="s">"irodori"</span>,
   <span class="s">"total_elapsed_sec"</span>: 27.406,
@@ -913,14 +980,14 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
     <h3>Python から呼ぶ</h3>
     <div class="cmd">
       <div class="head">Python</div>
-<pre><span class="f">from</span> pathlib <span class="f">import</span> Path
-<span class="f">from</span> tts_sample <span class="f">import</span> create_engine, SynthesisRequest
+<pre><span class="f">from</span> ttstoolkit.engine.registry <span class="f">import</span> create_engine
+<span class="f">from</span> ttstoolkit.engine.types <span class="f">import</span> SynthesisRequest
 
 <span class="f">with</span> create_engine(<span class="s">"irodori"</span>) <span class="f">as</span> engine:
     result = engine.synthesize(
         SynthesisRequest(
             text=<span class="s">"こんにちは。"</span>,
-            output_path=Path(<span class="s">"outputs/hello.wav"</span>),
+            output_path=<span class="s">"output/hello.wav"</span>,
             language=<span class="s">"ja"</span>,
             seed=42,
         )
@@ -954,7 +1021,7 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
         <div><b>マスター音声を作る</b><br><span class="d">長めの台詞で 1 本だけ生成して保存</span></div>
       </div>
       <div class="step"><span class="n">3</span>
-        <div><b>以後はクローンして使う</b><br><span class="d">--ref にマスター音声を渡す</span></div>
+        <div><b>以後はクローンして使う</b><br><span class="d">-r にマスター音声を渡す</span></div>
       </div>
       <div class="step"><span class="n">4</span>
         <div><b>英語版も同じ声で</b><br><span class="d">マスター音声を Qwen / Chatterbox へ</span></div>
@@ -964,23 +1031,23 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
     <div class="cmd">
       <div class="head">① 声を試す　→　② 固定する　→　③ クローンする</div>
 <pre><span class="cm"># ① 指示文を変えながら何本か作って聴き比べる（seed は固定しておく）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--seed</span> 42 <span class="f">--lang</span> ja \
-      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> \
-      <span class="f">--text</span> <span class="s">"この声でどうでしょうか。"</span> <span class="f">--out</span> voices\try01.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">--seed</span> 42 <span class="f">-l</span> ja <span class="c">`</span>
+      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="c">`</span>
+      <span class="f">-t</span> <span class="s">"この声でどうでしょうか。"</span> <span class="f">-o</span> input\voices <span class="f">-O</span> try01.wav
 
 <span class="cm"># ② 気に入ったら長めの台詞でマスター音声を 1 本作る（30 秒以上あると安定）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--seed</span> 42 <span class="f">--lang</span> ja \
-      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> \
-      <span class="f">--text-file</span> voices\master_script.txt <span class="f">--out</span> voices\reimu_master.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">--seed</span> 42 <span class="f">-l</span> ja <span class="c">`</span>
+      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="c">`</span>
+      <span class="f">-f</span> input\voices\master_script.txt <span class="f">-o</span> input\voices <span class="f">-O</span> reimu_master.wav
 
-<span class="cm"># ③ 以降は --ref でクローンする（声がぶれない）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--ref</span> voices\reimu_master.wav \
-      <span class="f">--text</span> <span class="s">"マスター音声から再現した声です。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav
+<span class="cm"># ③ 以降は -r でクローンする（声がぶれない）</span>
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-r</span> input\voices\reimu_master.wav <span class="c">`</span>
+      <span class="f">-t</span> <span class="s">"マスター音声から再現した声です。"</span> <span class="f">-l</span> ja <span class="f">-O</span> a.wav
 
 <span class="cm"># ④ 英語版は同じマスター音声を Qwen に渡す</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--lang</span> en <span class="f">--ref</span> voices\reimu_master.wav \
-      <span class="f">--ref-text</span> <span class="s">"こんにちは。私はこのキャラクターの声です。"</span> \
-      <span class="f">--text</span> <span class="s">"This is the same character speaking English."</span> <span class="f">--out</span> outputs\en.wav</pre>
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> qwen <span class="f">-l</span> en <span class="f">-r</span> input\voices\reimu_master.wav <span class="c">`</span>
+      <span class="f">--reference-text</span> <span class="s">"こんにちは。私はこのキャラクターの声です。"</span> <span class="c">`</span>
+      <span class="f">-t</span> <span class="s">"This is the same character speaking English."</span> <span class="f">-O</span> en.wav</pre>
     </div>
 
     <h3>指示文の書き方</h3>
@@ -1021,7 +1088,7 @@ NVIDIA GeForce RTX 5070, 12227 MiB, 2215 MiB, 595.79
           <tr class="q">
             <td><span class="eng-tag">qwen</span></td>
             <td class="ctr yes">○</td><td>英語推奨</td>
-            <td>専用チェックポイントを使う。<b>--ref とは併用不可</b></td>
+            <td>専用チェックポイントを使う。<b>-r とは併用不可</b></td>
           </tr>
           <tr class="c">
             <td><span class="eng-tag">chatterbox</span></td>
@@ -1063,7 +1130,7 @@ seed = 42
 
 [voices.<span class="s">"魔理沙"</span>]
 engine = <span class="s">"irodori"</span>
-reference_audio = <span class="s">"../../voices/marisa.wav"</span>
+reference_audio = <span class="s">"../../input/voices/marisa.wav"</span>
 language = <span class="s">"ja"</span>
 
 [voices.<span class="s">"ナレーター"</span>]
@@ -1094,22 +1161,19 @@ language = <span class="s">"ja"</span></pre>
 
     <div class="cmd">
       <div class="head">tts script</div>
-<pre><span class="p">&gt; </span>tts script <span class="f">--cast</span> samples\script\cast.toml <span class="f">--script</span> samples\script\ep01.ja.txt <span class="f">--outdir</span> outputs\ep01
+<pre><span class="p">&gt; </span>tts script <span class="f">-c</span> input\script\cast.toml <span class="f">--script</span> input\script\ep01.ja.txt <span class="f">-o</span> output\ep01
 
-<span class="out">7 台詞 / 3 キャラクター / エンジン: qwen, irodori
-
---- qwen (1 台詞) ---
-[001] ナレーター  1.84秒  ある晴れた日のこと。
-
---- irodori (6 台詞) ---
-[002] 霊夢  2.64秒  今日はいい天気ね。
-[003] 魔理沙  3.84秒  そうだな、絶好の弾幕日和だぜ！
-[004] 霊夢  2.52秒  ……また変なこと言ってる。
-[005] 魔理沙  3.92秒  変じゃないぜ。これが私の生き方なんだ。
-[006] 霊夢  4.96秒  まあいいわ。お茶でも淹れてくるから、そこで待っ…
-[007] 魔理沙  2.24秒  やった、ごちそうさま！
-
-7/7 台詞を生成。合計 23.8 秒</span></pre>
+<span class="out">[info] 7 lines / 3 characters / engines: qwen, irodori
+--- qwen (1 lines) ---
+[001] ナレーター   1.84s  ある晴れた日のこと。
+--- irodori (6 lines) ---
+[002] 霊夢         2.64s  今日はいい天気ね。
+[003] 魔理沙       3.84s  そうだな、絶好の弾幕日和だぜ！
+[004] 霊夢         2.52s  ……また変なこと言ってる。
+[005] 魔理沙       3.92s  変じゃないぜ。これが私の生き方なんだ。
+[006] 霊夢         4.96s  まあいいわ。お茶でも淹れてくるから、そこで待っ…
+[007] 魔理沙       2.24s  やった、ごちそうさま！
+[info] 7/7 lines synthesized</span></pre>
     </div>
 
     <h3>台本の書き方</h3>
@@ -1137,7 +1201,7 @@ language = <span class="s">"ja"</span></pre>
       Remotion の <code>&lt;Sequence from={...}&gt;</code> にそのまま使える。
     </p>
     <div class="cmd">
-      <div class="head">outputs/ep01/</div>
+      <div class="head">output/ep01/</div>
 <pre>001-ナレーター.wav
 002-霊夢.wav
 003-魔理沙.wav
@@ -1242,11 +1306,11 @@ manifest.json
     </p>
     <div class="cmd">
       <div class="head">対応外は即エラー</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text</span> <span class="s">"Hello."</span> <span class="f">--lang</span> en <span class="f">--out</span> outputs\x.wav
-<span class="out">エラー: エンジン 'irodori' は言語 'en' に対応していません。 対応言語: ja</span>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-t</span> <span class="s">"Hello."</span> <span class="f">-l</span> en <span class="f">-O</span> x.wav
+<span class="out">[error] Engine 'irodori' does not support language 'en' (supported: ja)</span>
 
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> chatterbox <span class="f">--text</span> <span class="s">"テスト"</span> <span class="f">--speed</span> 1.5 <span class="f">--out</span> outputs\x.wav
-<span class="out">エラー: エンジン 'chatterbox' は speed 指定に対応していません (speed=1.5)。</span></pre>
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> chatterbox <span class="f">-t</span> <span class="s">"テスト"</span> <span class="f">--speed</span> 1.5 <span class="f">-O</span> x.wav
+<span class="out">[error] Engine 'chatterbox' does not support speed (speed=1.5); leave it at 1.0</span></pre>
     </div>
 
     <h3>日英の両方が要る場合</h3>
@@ -1254,49 +1318,53 @@ manifest.json
     <ul class="plain">
       <li>Irodori の Voice Design で日本語のキャラクター声を作る</li>
       <li>その音声を「マスター音声」として保存する</li>
-      <li>英語版はマスター音声を <code>--ref</code> に渡して Qwen か Chatterbox で生成する</li>
+      <li>英語版はマスター音声を <code>-r</code> に渡して Qwen か Chatterbox で生成する</li>
     </ul>
     <div class="cmd">
       <div class="head">日英を同じ声で出す</div>
 <pre><span class="cm"># 日本語（Irodori）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text</span> <span class="s">"こんにちは。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\ja.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-t</span> <span class="s">"こんにちは。"</span> <span class="f">-l</span> ja <span class="f">-O</span> ja.wav
 
 <span class="cm"># 英語（同じ声でクローン）</span>
-<span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--text</span> <span class="s">"Hello."</span> <span class="f">--lang</span> en \
-      <span class="f">--ref</span> outputs\ja.wav <span class="f">--ref-text</span> <span class="s">"こんにちは。"</span> <span class="f">--out</span> outputs\en.wav</pre>
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> qwen <span class="f">-t</span> <span class="s">"Hello."</span> <span class="f">-l</span> en <span class="c">`</span>
+      <span class="f">-r</span> output\ja.wav <span class="f">--reference-text</span> <span class="s">"こんにちは。"</span> <span class="f">-O</span> en.wav</pre>
     </div>
     <p>日英で音響モデルが違うので、同一人物に聞こえるかは必ず耳で確認すること。</p>
 
     <h3>設定を変える</h3>
     <p>
-      <code>python/engines.toml</code> にエンジンごとの設定がある。
+      <code>python/ttstoolkit/tool_config.py</code> にエンジンごとの設定がある。
       仮想環境を作り直す必要はなく、編集すれば次の実行から反映される。
     </p>
     <div class="cmd">
-      <div class="head">python/engines.toml（抜粋）</div>
-<pre>[qwen.options]
-base_model = <span class="s">"Qwen/Qwen3-TTS-12Hz-1.7B-Base"</span>   <span class="cm"># VRAM 不足なら 0.6B に</span>
-dtype = <span class="s">"bfloat16"</span>
-
-[qwen.options.speakers]
-ja = <span class="s">"ono_anna"</span>    <span class="cm"># 参照音声なしのときのプリセット話者</span>
-en = <span class="s">"ryan"</span>
-
-[chatterbox.options]
-cfg_weight = 0.5   <span class="cm"># 上げると読み飛ばしが減る</span>
-
-[irodori.options]
-num_steps = 24                          <span class="cm"># 下げると速く、上げると高品質</span>
-caption = <span class="s">"落ち着いた低めの女性の声。"</span>   <span class="cm"># 文章で声を設計する</span></pre>
+      <div class="head">python/ttstoolkit/tool_config.py（抜粋）</div>
+<pre>ENGINE_DEFINITIONS = {
+    <span class="s">"qwen"</span>: EngineSpec(
+        ...
+        options={
+            <span class="cm"># VRAM 不足なら 0.6B に</span>
+            <span class="s">"base_model"</span>: <span class="s">"Qwen/Qwen3-TTS-12Hz-1.7B-Base"</span>,
+            <span class="s">"dtype"</span>: <span class="s">"bfloat16"</span>,
+            <span class="cm"># 声の指定が無いときのプリセット話者</span>
+            <span class="s">"speakers"</span>: {<span class="s">"ja"</span>: <span class="s">"ono_anna"</span>, <span class="s">"en"</span>: <span class="s">"ryan"</span>},
+        },
+    ),
+    <span class="s">"chatterbox"</span>: EngineSpec(
+        options={<span class="s">"cfg_weight"</span>: 0.5},   <span class="cm"># 上げると読み飛ばしが減る</span>
+    ),
+    <span class="s">"irodori"</span>: EngineSpec(
+        options={<span class="s">"num_steps"</span>: 24},     <span class="cm"># 下げると速く、上げると高品質</span>
+    ),
+}</pre>
     </div>
     <p>
-      <code>caption</code> は Irodori の目玉機能で、日本語の説明文から声を作れる。
-      本文に絵文字を入れると笑い・ため息なども表現する。
+      声そのものは設定ではなく <code>--voice-design</code> で指定する。
+      Irodori はさらに、本文に絵文字を入れると笑い・ため息なども表現する。
     </p>
     <div class="cmd">
       <div class="head">絵文字で感情を乗せる</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--lang</span> ja <span class="f">--out</span> outputs\emotion.wav \
-      <span class="f">--text</span> <span class="s">"あははっ🤭、それ本当に言ってるの？…😮‍💨まぁ、君らしいけどね。"</span></pre>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-l</span> ja <span class="f">-O</span> emotion.wav <span class="c">`</span>
+      <span class="f">-t</span> <span class="s">"あははっ🤭、それ本当に言ってるの？…😮‍💨まぁ、君らしいけどね。"</span></pre>
     </div>
   </div>
 </section>
@@ -1313,8 +1381,8 @@ caption = <span class="s">"落ち着いた低めの女性の声。"</span>   <sp
 
     <div class="stats">
       <div class="stat"><div class="v">3 / 3</div><div class="k">エンジンが GPU で動作</div></div>
-      <div class="stat"><div class="v">30</div><div class="k">モデル不要の検証テスト</div></div>
-      <div class="stat"><div class="v">0.16<span style="font-size:13px">秒</span></div><div class="k">対応外リクエストの応答</div></div>
+      <div class="stat"><div class="v">31</div><div class="k">モデル不要の検証テスト</div></div>
+      <div class="stat"><div class="v">0.14<span style="font-size:13px">秒</span></div><div class="k">対応外リクエストの応答</div></div>
       <div class="stat"><div class="v">16<span style="font-size:13px">bit</span></div><div class="k">全エンジン PCM モノラル</div></div>
     </div>
 
@@ -1372,27 +1440,38 @@ caption = <span class="s">"落ち着いた低めの女性の声。"</span>   <sp
     <h2>ファイル構成</h2>
 
     <div class="tree">mise.toml                        <span class="cm">Python 3.12 と uv の設定</span>
-python/                          <span class="cm">Python のコードだけ</span>
-  tts_sample/                <span class="cm">共通層（torch に依存しない）</span>
+pyproject.toml                   <span class="cm">共通層・GUI の依存と ruff の設定</span>
+python/ttstoolkit/               <span class="cm">ツール本体</span>
+  main.py                        <span class="cm">GUI の起点</span>
+  tool_config.py                 <span class="cm">ツール設定とエンジン定義</span>
+  definitions.py                 <span class="cm">画面に並べる選択肢の Enum</span>
+  logger.py                      <span class="cm">logging を Qt のシグナルへ中継</span>
+  cli/                           <span class="cm">1 コマンド 1 ファイル</span>
+    synth.py batch.py script.py engines.py doctor.py
+  gui/                           <span class="cm">PySide6 の MVC</span>
+    main_model.py main_view.py main_controller.py
+    widgets/                     <span class="cm">入力行と 3 つのタブ</span>
+  engine/                        <span class="cm">CLI / GUI 共用の処理本体</span>
+    interface.py                 <span class="cm">TTSEngine 抽象。対応外パラメータの検証もここ</span>
     types.py                     <span class="cm">SynthesisRequest / SynthesisResult / 例外</span>
-    engine.py                    <span class="cm">TTSEngine 抽象。対応外パラメータの検証もここ</span>
     subprocess_engine.py         <span class="cm">runner を常駐させ JSON で駆動する</span>
+    jobs.py                      <span class="cm">まとめて合成する処理と manifest</span>
     script.py                    <span class="cm">cast.toml と台本テキストの読み込み</span>
-    config.py / registry.py      <span class="cm">engines.toml の読み込みとエンジン生成</span>
-    cli.py                       <span class="cm">synth / script / batch / engines / doctor</span>
-  engines.toml                   <span class="cm">エンジン定義（モデル ID・生成パラメータ）</span>
-  engines/
-    _shared/runner_base.py       <span class="cm">プロトコルと PCM16 書き出しの共有実装</span>
-    <span class="q">qwen/</span>                        <span class="cm">pyproject.toml + runner.py + .venv</span>
-    <span class="c">chatterbox/</span>                  <span class="cm">pyproject.toml + runner.py + .venv</span>
-    <span class="i">irodori/</span>                     <span class="cm">runner.py + patch_vendor.py + vendor/</span>
-  tests/                         <span class="cm">モデル不要の検証（30 件）</span>
-docs/setup/                      <span class="cm">共通 + モデル別の導入手順</span>
-docs/guide/                      <span class="cm">台本とオリジナルボイスの解説</span>
-scripts/                         <span class="cm">セットアップ用 PowerShell</span>
-samples/script/                  <span class="cm">キャスト定義と台本の例</span>
-voices/                          <span class="cm">マスター音声の置き場（git 管理外）</span>
-outputs/                         <span class="cm">生成物（git 管理外）</span></div>
+    runners/                     <span class="cm">各モデルの環境で動く小さなプログラム</span>
+      interface.py               <span class="cm">EngineRunner 抽象とプロトコル</span>
+      <span class="q">qwen_runner.py</span> <span class="c">chatterbox_runner.py</span> <span class="i">irodori_runner.py</span>
+engine_env/                      <span class="cm">各エンジンの環境を作るための定義</span>
+  <span class="q">qwen/</span> <span class="c">chatterbox/</span>            <span class="cm">pyproject.toml + mise.toml + uv.lock</span>
+  <span class="i">irodori/</span>                       <span class="cm">patch_vendor.py + vendor/（上流の clone）</span>
+.venvs/                          <span class="cm">仮想環境の実体（git 管理外）</span>
+resources/ui/stylesheet.qss      <span class="cm">GUI の色とサイズ</span>
+scripts/win/                     <span class="cm">セットアップと GUI 起動</span>
+input/voices/                    <span class="cm">参照音声の置き場（git 管理外）</span>
+input/script/                    <span class="cm">キャスト定義と台本の例</span>
+input/batch/                     <span class="cm">バッチ入力 JSON の例</span>
+output/                          <span class="cm">生成物（git 管理外）</span>
+tests/                           <span class="cm">モデル不要の検証（31 件）</span>
+docs/                            <span class="cm">setup / cli / gui / guide / development</span></div>
 
     <h3>モデルごとの導入手順</h3>
     <p>
@@ -1423,6 +1502,14 @@ outputs/                         <span class="cm">生成物（git 管理外）</
             <td>clone が必要な理由、Windows + 3.12 向けパッチ、Voice Design と絵文字制御</td>
           </tr>
           <tr>
+            <td class="mono">cli/*.md</td>
+            <td>コマンドごとの引数と出力。共通の引数とパスの解決は common_options.md</td>
+          </tr>
+          <tr>
+            <td class="mono">gui/usage.md</td>
+            <td>画面の使い方。3 つのタブ、ログ、保存される設定</td>
+          </tr>
+          <tr>
             <td class="mono">guide/script.md</td>
             <td>台本の文法、行オプション、manifest と Remotion 連携、英語版の作り方</td>
           </tr>
@@ -1437,10 +1524,9 @@ outputs/                         <span class="cm">生成物（git 管理外）</
     <h3>開発</h3>
     <div class="cmd">
       <div class="head">テストと lint</div>
-<pre><span class="p">&gt; </span>cd python
-<span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m pytest tests\ -q   <span class="cm"># モデル不要</span>
-<span class="p">&gt; </span>.\.venvs\common\Scripts\ruff.exe check .
-<span class="p">&gt; </span>.\.venvs\common\Scripts\ruff.exe format .</pre>
+<pre><span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m pytest -q   <span class="cm"># モデル不要</span>
+<span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ruff check .
+<span class="p">&gt; </span>.\.venvs\common\Scripts\python.exe -m ruff format .</pre>
     </div>
     <p>
       テストはモデルを読み込まずに、サブプロセスとのやり取り・UTF-8・
@@ -1462,18 +1548,18 @@ outputs/                         <span class="cm">生成物（git 管理外）</
         </thead>
         <tbody>
           <tr>
-            <td><code>未構築</code> と表示される</td>
+            <td><code>not set up</code> と表示される</td>
             <td>そのエンジンの仮想環境がまだ無い。<code>tts engines</code> で確認し、
-                <code>pwsh scripts\setup_engines.ps1 -Engines irodori</code> で個別に作り直す。</td>
+                <code>pwsh scripts\win\setup_engines.ps1 -Targets irodori</code> で個別に作り直す。</td>
           </tr>
           <tr>
             <td>生成が遅い／CPU で動いている気がする</td>
-            <td><code>tts doctor</code> で <code>CUDA 利用不可</code> と出ていないか確認する。
+            <td><code>tts doctor</code> で <code>CUDA unavailable</code> と出ていないか確認する。
                 ドライバのバージョンと <code>nvidia-smi</code> が動くかを見る。</td>
           </tr>
           <tr>
             <td>VRAM が足りない（OOM）</td>
-            <td><code>engines.toml</code> の Qwen のモデル ID を <code>0.6B</code> 版に変える。
+            <td><code>tool_config.py</code> の Qwen のモデル ID を <code>0.6B</code> 版に変える。
                 複数エンジンを同時に動かさない。</td>
           </tr>
           <tr>
@@ -1483,12 +1569,12 @@ outputs/                         <span class="cm">生成物（git 管理外）</
           </tr>
           <tr>
             <td>エラーの詳細が見たい</td>
-            <td><code>--verbose</code> を付けるとエンジン側のログがそのまま流れる。</td>
+            <td><code>-v</code> / <code>--verbose</code> を付けるとエンジン側のログがそのまま流れる。</td>
           </tr>
           <tr>
             <td>時間がかかりすぎてタイムアウトする</td>
-            <td><code>TTS_SAMPLE_READY_TIMEOUT</code>（既定 1800 秒・モデル読み込み）と
-                <code>TTS_SAMPLE_SYNTH_TIMEOUT</code>（既定 900 秒・1 件の合成）で延ばせる。</td>
+            <td><code>TTS_READY_TIMEOUT</code>（既定 1800 秒・モデル読み込み）と
+                <code>TTS_SYNTH_TIMEOUT</code>（既定 900 秒・1 件の合成）で延ばせる。</td>
           </tr>
           <tr>
             <td>日本語が文字化けする</td>
@@ -1500,7 +1586,7 @@ outputs/                         <span class="cm">生成物（git 管理外）</
     </div>
 
     <p>
-      その他は <code>docs/setup/00_common.md</code> と各モデルのドキュメントに項目がある。
+      その他は <code>docs/setup/00_common.md</code>、コマンド別は <code>docs/cli/</code>、画面は <code>docs/gui/usage.md</code> に項目がある。
     </p>
   </div>
 </section>

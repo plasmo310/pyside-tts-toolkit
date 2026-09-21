@@ -3,25 +3,22 @@
 複数のキャラクターが会話する台本を書いて、台詞ごとの wav をまとめて生成する。
 
 ```powershell
-tts script --cast samples\script\cast.toml --script samples\script\ep01.ja.txt --outdir outputs\ep01
+tts script ep01.ja.txt -c cast.toml -o output\ep01
 ```
 
 ```
-7 台詞 / 3 キャラクター / エンジン: qwen, irodori
-
---- qwen (1 台詞) ---
-[001] ナレーター  1.84秒  ある晴れた日のこと。
-
---- irodori (6 台詞) ---
-[002] 霊夢  2.64秒  今日はいい天気ね。
-[003] 魔理沙  3.84秒  そうだな、絶好の弾幕日和だぜ！
-[004] 霊夢  2.52秒  ……また変なこと言ってる。
-[005] 魔理沙  3.92秒  変じゃないぜ。これが私の生き方なんだ。
-[006] 霊夢  4.96秒  まあいいわ。お茶でも淹れてくるから、そこで待っ…
-[007] 魔理沙  2.24秒  やった、ごちそうさま！
-
-7/7 台詞を生成。合計 23.8 秒
-manifest: D:\...\outputs\ep01\manifest.json
+[info] 7 lines / 3 characters / engines: qwen, irodori
+--- qwen (1 lines) ---
+[001] ナレーター   1.84s  ある晴れた日のこと。
+--- irodori (6 lines) ---
+[002] 霊夢         2.64s  今日はいい天気ね。
+[003] 魔理沙       3.84s  そうだな、絶好の弾幕日和だぜ！
+[004] 霊夢         2.52s  ……また変なこと言ってる。
+[005] 魔理沙       3.92s  変じゃないぜ。これが私の生き方なんだ。
+[006] 霊夢         4.96s  まあいいわ。お茶でも淹れてくるから、そこで待っ…
+[007] 魔理沙       2.24s  やった、ごちそうさま！
+[info] wrote output\ep01\manifest.json
+[info] 7/7 lines synthesized
 ```
 
 ## ファイルを 2 つに分ける理由
@@ -46,7 +43,7 @@ seed = 42
 
 [voices."魔理沙"]
 engine = "irodori"
-reference_audio = "../../voices/marisa.wav"   # この cast.toml からの相対パス
+reference_audio = "../voices/marisa.wav"   # この cast.toml からの相対パス
 language = "ja"
 
 [voices."ナレーター"]
@@ -141,7 +138,7 @@ seed = 100
 ## 出力
 
 ```
-outputs/ep01/
+output/ep01/
   001-ナレーター.wav
   002-霊夢.wav
   003-魔理沙.wav
@@ -239,15 +236,15 @@ Irodori は英語を出せないので、英語版は別のキャスト定義を
 ```toml
 [voices."Reimu"]
 engine = "qwen"
-reference_audio = "../../voices/reimu_master.wav"
+reference_audio = "../voices/reimu_master.wav"
 reference_text = "こんにちは。私はこのキャラクターの声です。"
 language = "en"
 seed = 42
 ```
 
 ```powershell
-tts script --cast samples\script\cast.toml    --script samples\script\ep01.ja.txt --outdir outputs\ep01-ja
-tts script --cast samples\script\cast.en.toml --script samples\script\ep01.en.txt --outdir outputs\ep01-en
+tts script ep01.ja.txt -c cast.toml -o output\ep01-ja
+tts script ep01.en.txt -c cast.en.toml -o output\ep01-en
 ```
 
 マスター音声の作り方は [original-voice.md](original-voice.md) を参照。

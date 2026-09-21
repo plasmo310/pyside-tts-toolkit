@@ -9,7 +9,8 @@
 | [02_chatterbox.md](02_chatterbox.md) | Chatterbox Multilingual V3（23 言語、最も軽い） |
 | [03_irodori-tts.md](03_irodori-tts.md) | Irodori-TTS v4.1 Small（日本語専用、48kHz） |
 
-導入が終わったら [../guide/](../guide/) に使い方の解説がある。
+導入が終わったら [../cli/](../cli/) と [../gui/usage.md](../gui/usage.md)、
+作り込みは [../guide/](../guide/) を参照。
 
 ## なぜエンジンごとに環境を分けるのか
 
@@ -21,16 +22,18 @@
 | Chatterbox | `==5.2.0` | `==2.6.0`（後述の理由で上書きする） |
 | Irodori-TTS | `>=5.12.1,<6` | `>=2.10.0,<2.11.0` |
 
-そのため共通ラッパーはモデルを直接 import せず、エンジンごとの venv にある
-`runner.py` をサブプロセスとして起動し、標準入出力の JSON でやり取りする。
-共通層自体は torch に依存しないので、将来 GUI から使うときもそのまま再利用できる。
+そのため共通層はモデルを直接 import せず、エンジンごとの仮想環境にある
+runner をサブプロセスとして起動し、標準入出力の JSON でやり取りする。
+共通層自体は torch に依存しないので、CLI からも GUI からも同じものを呼べる。
 
 ```
-.venvs/common               共通層。tts コマンド。torch なし
+.venvs/common               CLI・GUI・共通層。torch なし
   ├─ .venvs/engine-qwen        transformers 4.57.3
   ├─ .venvs/engine-chatterbox  transformers 5.2.0
   └─ .venvs/engine-irodori     transformers 5.12.x
 ```
+
+仮想環境を作るための定義は `engine_env/<name>/` にある。
 
 ## 機能対応表
 

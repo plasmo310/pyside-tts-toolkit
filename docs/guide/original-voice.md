@@ -8,7 +8,7 @@
         ↓
 ② 気に入った声をマスター音声に  長めの台詞で 1 本作って保存
         ↓
-③ 以後はクローンして使う       --ref にマスター音声を渡す
+③ 以後はクローンして使う       -r にマスター音声を渡す
         ↓
 ④ 英語版も同じ声で            マスター音声を Qwen / Chatterbox へ
 ```
@@ -22,7 +22,7 @@
 | エンジン | Voice Design | 指示の言語 | 備考 |
 |---|:---:|---|---|
 | `irodori` | ○ | 日本語 | 日本語キャラクターならこれが第一候補。48 kHz |
-| `qwen` | ○ | 英語推奨 | 専用チェックポイントを使う。`--ref` とは併用不可 |
+| `qwen` | ○ | 英語推奨 | 専用チェックポイントを使う。`-r/--reference` とは併用不可 |
 | `chatterbox` | × | — | 参照音声からのクローンのみ |
 
 `chatterbox` に `--voice-design` を渡すと、黙って無視されず明示的にエラーになる。
@@ -34,24 +34,24 @@
 ### Irodori（日本語）
 
 ```powershell
-tts synth --engine irodori --seed 42 `
+tts synth -e irodori --seed 42 `
     --voice-design "落ち着いた低めの女性の声。丁寧で穏やかな話し方。" `
-    --text "この声でどうでしょうか。名前は霊夢といいます。" `
-    --lang ja --out voices\try01.wav
+    -t "この声でどうでしょうか。名前は霊夢といいます。" `
+    -l ja -o input\voices -O try01.wav
 ```
 
 指示の文章を変えて何本か作り、聴き比べる。
 
 ```powershell
-tts synth --engine irodori --seed 42 `
+tts synth -e irodori --seed 42 `
     --voice-design "元気で明るい少女の声。やや早口で、楽しそうに話す。" `
-    --text "この声でどうでしょうか。名前は魔理沙といいます。" `
-    --lang ja --out voices\try02.wav
+    -t "この声でどうでしょうか。名前は魔理沙といいます。" `
+    -l ja -o input\voices -O try02.wav
 
-tts synth --engine irodori --seed 42 `
+tts synth -e irodori --seed 42 `
     --voice-design "少し掠れた低い男性の声。ぶっきらぼうだが芯がある。" `
-    --text "この声でどうでしょうか。" `
-    --lang ja --out voices\try03.wav
+    -t "この声でどうでしょうか。" `
+    -l ja -o input\voices -O try03.wav
 ```
 
 #### 指示文の書き方
@@ -82,10 +82,10 @@ Qwen は専用のチェックポイント（`Qwen3-TTS-12Hz-1.7B-VoiceDesign`）
 初回は 4GB 前後のダウンロードが入る。
 
 ```powershell
-tts synth --engine qwen --seed 42 `
+tts synth -e qwen --seed 42 `
     --voice-design "A calm, low-pitched female voice. Speaks politely and gently." `
-    --text "Hello. This is a designed voice." `
-    --lang en --out voices\try_en.wav
+    -t "Hello. This is a designed voice." `
+    -l en -o input\voices -O try_en.wav
 ```
 
 Qwen の Voice Design は**参照音声と併用できない**。声の出どころが
@@ -101,10 +101,10 @@ Qwen の Voice Design は**参照音声と併用できない**。声の出どこ
 声が決まったら、**長めの台詞で 1 本だけ**生成して保存する。これが以後の基準になる。
 
 ```powershell
-tts synth --engine irodori --seed 42 `
+tts synth -e irodori --seed 42 `
     --voice-design "落ち着いた低めの女性の声。丁寧で穏やかな話し方。" `
-    --text-file voices\master_script.txt `
-    --lang ja --out voices\reimu_master.wav
+    -f input\voices\master_script.txt `
+    -l ja -o input\voices -O reimu_master.wav
 ```
 
 `voices/master_script.txt` の中身は、声の特徴が出るように書く。
@@ -133,13 +133,13 @@ Irodori で 30 秒に届かない場合は、台本を足して長くする。
 
 ## ③ 以後はクローンして使う
 
-マスター音声ができたら、`--voice-design` ではなく `--ref` を使う。
+マスター音声ができたら、`--voice-design` ではなく `-r/--reference` を使う。
 
 ```powershell
-tts synth --engine irodori `
-    --ref voices\reimu_master.wav `
-    --text "これはマスター音声から再現した声です。" `
-    --lang ja --out outputs\line01.wav
+tts synth -e irodori `
+    -r input\voices\reimu_master.wav `
+    -t "これはマスター音声から再現した声です。" `
+    -l ja -O line01.wav
 ```
 
 台本から使う場合は `cast.toml` に書く。
@@ -147,7 +147,7 @@ tts synth --engine irodori `
 ```toml
 [voices."霊夢"]
 engine = "irodori"
-reference_audio = "../../voices/reimu_master.wav"
+reference_audio = "../voices/reimu_master.wav"
 language = "ja"
 seed = 42
 # 作ったときの指示文を記録しておく（コメント）
@@ -165,17 +165,17 @@ Irodori は英語を出せないので、英語版はマスター音声を Qwen 
 
 ```powershell
 # Qwen（書き起こしを渡すと品質が上がる）
-tts synth --engine qwen --lang en `
-    --ref voices\reimu_master.wav `
-    --ref-text "こんにちは。私はこのキャラクターの声です。今日はよろしくお願いします。" `
-    --text "This is the same character speaking English." `
-    --out outputs\line01_en.wav
+tts synth -e qwen -l en `
+    -r input\voices\reimu_master.wav `
+    --reference-text "こんにちは。私はこのキャラクターの声です。今日はよろしくお願いします。" `
+    -t "This is the same character speaking English." `
+    -O line01_en.wav
 
 # Chatterbox（書き起こし不要。軽くて速い）
-tts synth --engine chatterbox --lang en `
-    --ref voices\reimu_master.wav `
-    --text "This is the same character speaking English." `
-    --out outputs\line01_en.wav
+tts synth -e chatterbox -l en `
+    -r input\voices\reimu_master.wav `
+    -t "This is the same character speaking English." `
+    -O line01_en.wav
 ```
 
 > [!warning] 同一人物に聞こえるかは耳で確認する
@@ -198,12 +198,12 @@ tts synth --engine chatterbox --lang en `
 
 ## 声の設計を使わない選択肢
 
-収録した実在の声を使う場合は、Voice Design を経由せず最初から `--ref` に
+収録した実在の声を使う場合は、Voice Design を経由せず最初から `-r/--reference` に
 その音声を渡せばよい。
 
 ```powershell
-tts synth --engine irodori --ref voices\actor_take01.wav `
-    --text "収録した声をクローンしています。" --lang ja --out outputs\a.wav
+tts synth -e irodori -r input\voices\actor_take01.wav `
+    -t "収録した声をクローンしています。" -l ja -O a.wav
 ```
 
 **その場合は本人の同意と利用範囲の確認が必要。** モデルの重みは商用利用可
@@ -214,25 +214,25 @@ tts synth --engine irodori --ref voices\actor_take01.wav `
 ### `エンジン 'chatterbox' は Voice Design に対応していません`
 
 Chatterbox は参照音声からのクローンのみ。別のエンジンで声を作ってから、
-その音声を Chatterbox に `--ref` で渡す。
+その音声を Chatterbox に `-r/--reference` で渡す。
 
-### `Qwen3-TTS では --voice-design と --ref は併用できません`
+### `Qwen3-TTS では --voice-design と -r は併用できません`
 
 Qwen は指示文か参照音声のどちらか一方しか使えない。
-文章から声を作るなら `--ref` を外す。
+文章から声を作るなら `-r/--reference` を外す。
 
 なお Irodori は併用できる。その場合は**声質が参照音声・話し方が指示文**になる。
 
 ```powershell
-tts synth --engine irodori --ref voices\reimu_master.wav `
+tts synth -e irodori -r input\voices\reimu_master.wav `
     --voice-design "怒っている。強い口調で。" `
-    --text "いい加減にしなさい！" --lang ja --out outputs\angry.wav
+    -t "いい加減にしなさい！" -l ja -O angry.wav
 ```
 
 ### 毎回違う声になる
 
 Voice Design は生成ごとに揺れる。`--seed` を固定し、決まったら
-マスター音声に落として以後は `--ref` を使う。
+マスター音声に落として以後は `-r/--reference` を使う。
 
 ### 指示どおりの声にならない
 

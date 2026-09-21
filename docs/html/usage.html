@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>tts コマンド早見表</title>
+<title>TTS Toolkit 使い方</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
@@ -345,6 +345,7 @@
 <nav>
   <div class="wrap">
     <a href="#start">準備</a>
+    <a href="#gui">GUI</a>
     <a href="#one">1本作る</a>
     <a href="#voice">声を作る</a>
     <a href="#clone">クローン</a>
@@ -357,9 +358,9 @@
 
 <header>
   <div class="wrap">
-    <h1>tts コマンド早見表</h1>
+    <h1>TTS Toolkit 使い方</h1>
     <p>
-      セットアップが済んだ状態から、やりたいことごとにコマンドを引くためのページ。
+      セットアップが済んだ状態から、やりたいことごとに引くためのページ。
       導入手順は <code>docs/setup/</code> を参照。
     </p>
   </div>
@@ -369,15 +370,22 @@
 <section id="start">
   <div class="wrap">
     <h2>準備 <span class="tag">最初に一度</span></h2>
-    <p>コマンドはすべて<b>リポジトリのルート</b>で実行する。パスが長いので alias を張る。</p>
+    <p>
+      コマンドはすべて<b>リポジトリのルート</b>で実行する。
+      パスが長いので、サブコマンド名を受け取る関数を作っておく
+      （<code>Set-Alias</code> は引数を渡せないので関数にする）。
+    </p>
 
     <div class="cmd">
       <div class="label">PowerShell（このシェルの間だけ有効）</div>
 <pre><span class="p">&gt; </span>cd python-tts-sample
-<span class="p">&gt; </span><span class="f">function</span> tts { &amp; <span class="s">"$PWD\.venvs\common\Scripts\python.exe"</span> -m tts_sample @args }</pre>
+<span class="p">&gt; </span><span class="f">function</span> tts {
+<span class="p">&gt;&gt; </span>    $exe = <span class="s">"$PWD\.venvs\common\Scripts\python.exe"</span>
+<span class="p">&gt;&gt; </span>    &amp; $exe -m <span class="s">"ttstoolkit.cli.$($args[0])"</span> @($args | Select-Object -Skip 1)
+<span class="p">&gt;&gt; </span>}</pre>
     </div>
 
-    <p>環境が正しいか確認する。<code>CUDA OK</code> が 3 つ出れば準備完了。</p>
+    <p>環境が正しいか確認する。<code>CUDA ok</code> が 3 つ出れば準備完了。</p>
 
     <div class="cmd">
       <div class="label">動作確認</div>
@@ -385,9 +393,60 @@
 <span class="p">&gt; </span>tts engines   <span class="cm"># エンジン一覧と対応機能</span></pre>
     </div>
 
-    <div class="files">outputs/    <span class="cm">生成した wav の置き場</span>
-voices/     <span class="cm">マスター音声の置き場</span>
-samples/    <span class="cm">台本とバッチ入力の例</span></div>
+    <div class="files">input/voices/   <span class="cm">参照音声（マスター音声）の置き場</span>
+input/script/   <span class="cm">キャスト定義と台本</span>
+input/batch/    <span class="cm">バッチ入力 JSON</span>
+output/         <span class="cm">生成した wav の置き場</span></div>
+
+    <div class="note">
+      <b>パスはファイル名だけでよい</b>
+      <p>
+        相対パスは「カレント → リポジトリのルート → 種類ごとの既定の置き場」の
+        順に探される。参照音声なら <code>input/voices/</code>、台本なら
+        <code>input/script/</code> から拾うので、
+        <code>-r master.wav</code> のように書ける。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= GUI -->
+<section id="gui">
+  <div class="wrap">
+    <h2>GUI で試す <span class="tag">画面から</span></h2>
+    <p>
+      最低限の操作は画面からできる。合成そのものは CLI と同じものを呼ぶので、
+      <b>画面からできることと CLI からできることは一致する</b>。
+    </p>
+
+    <div class="cmd">
+      <div class="label">起動</div>
+<pre><span class="p">&gt; </span>scripts\win\LaunchApp.bat</pre>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>タブ</th><th>すること</th><th>CLI では</th></tr></thead>
+        <tbody>
+          <tr><td><b>Synthesis</b></td><td>テキストを 1 件合成する</td><td><code>tts synth</code></td></tr>
+          <tr><td><b>Voice Design</b></td><td>文章から声を作り <code>input/voices/</code> に残す</td><td><code>tts synth --voice-design</code></td></tr>
+          <tr><td><b>Script</b></td><td>台本からまとめて合成する</td><td><code>tts script</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      合成は別スレッドで走るので画面は固まらない。進捗は下のログ欄に流れ、
+      入力値とウィンドウの位置は終了時に保存されて次の起動で戻る。
+    </p>
+
+    <div class="note">
+      <b>Cancel はすぐには効かない</b>
+      <p>
+        生成中の 1 件を途中で止める手段がモデル側に無いので、キャンセルは
+        <b>次の台詞に入る前</b>に効く。1 件だけの合成では最後まで走る。
+      </p>
+    </div>
   </div>
 </section>
 
@@ -398,53 +457,50 @@ samples/    <span class="cm">台本とバッチ入力の例</span></div>
     <p>いちばん基本の形。まずは軽い <code>chatterbox</code> で試すのが早い。</p>
 
     <div class="cmd">
-      <div class="label">テキストを直接渡す</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> chatterbox <span class="f">--text</span> <span class="s">"こんにちは。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\hello.wav
+      <div class="label">最短</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> chatterbox <span class="f">-t</span> <span class="s">"こんにちは。音声合成のテストです。"</span> <span class="f">-l</span> ja
 
-<span class="out">[chatterbox] D:\...\outputs\hello.wav
-  24000 Hz / 2.52 秒 / 生成 4.22 秒</span></pre>
+<span class="out">[info] Engine chatterbox is ready (ResembleAI/chatterbox multilingual v3)
+wrote D:\...\output\chatterbox-7a1c93e2f508.wav
+  model    ResembleAI/chatterbox multilingual v3
+  audio    24000 Hz / 2.96s
+  took     5.39s</span></pre>
     </div>
+
+    <p>
+      <code>-O</code> を省くとテキストから決まる名前になる。名前を決めたいときは付ける。
+    </p>
 
     <div class="cmd">
-      <div class="label">長い台本はファイルから（UTF-8）</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text-file</span> script.txt <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav</pre>
+      <div class="label">出力先を決める・長い文はファイルから（UTF-8）</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> qwen <span class="f">-t</span> <span class="s">"こんにちは。"</span> <span class="f">-l</span> ja <span class="f">-O</span> hello.wav
+<span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-f</span> script.txt <span class="f">-l</span> ja <span class="f">-o</span> output\ep01</pre>
     </div>
 
-    <div class="cmd">
-      <div class="label">同じ結果を再現したいときはシードを固定</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--text</span> <span class="s">"こんにちは。"</span> <span class="f">--lang</span> ja <span class="f">--seed</span> 42 <span class="f">--out</span> outputs\b.wav</pre>
-    </div>
-
-    <div class="cmd">
-      <div class="label">話速を変える（irodori のみ・1.0 が等速）</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--text</span> <span class="s">"ゆっくり話します。"</span> <span class="f">--lang</span> ja <span class="f">--speed</span> 0.8 <span class="f">--out</span> outputs\slow.wav</pre>
-    </div>
-
-    <h3>オプション一覧</h3>
     <div class="scroll">
       <table>
-        <thead><tr><th>オプション</th><th>説明</th></tr></thead>
+        <thead><tr><th>引数</th><th>内容</th></tr></thead>
         <tbody>
-          <tr><td class="mono">--engine</td><td><b>必須。</b> qwen / chatterbox / irodori</td></tr>
-          <tr><td class="mono">--text</td><td><b>必須</b>（または <code>--text-file</code>）。合成するテキスト</td></tr>
-          <tr><td class="mono">--text-file</td><td>テキストをファイルから読む（UTF-8）</td></tr>
-          <tr><td class="mono">--out</td><td><b>必須。</b> 出力 wav のパス</td></tr>
-          <tr><td class="mono">--lang</td><td>ja / en。省略するとエンジンの既定</td></tr>
-          <tr><td class="mono">--ref</td><td>参照音声 wav（声のクローン）</td></tr>
-          <tr><td class="mono">--ref-text</td><td>参照音声の書き起こし。<b>qwen のみ使う</b></td></tr>
-          <tr><td class="mono">--voice-design</td><td>文章で声を設計。<b>qwen / irodori のみ</b></td></tr>
-          <tr><td class="mono">--seed</td><td>乱数シード</td></tr>
-          <tr><td class="mono">--speed</td><td>話速。<b>irodori のみ</b></td></tr>
-          <tr><td class="mono">--verbose</td><td>エンジンのログをそのまま表示する</td></tr>
+          <tr><td><code>-e</code> / <code>--engine</code></td><td><b>必須。</b> qwen / chatterbox / irodori</td></tr>
+          <tr><td><code>-t</code> / <code>--text</code></td><td>読み上げるテキスト</td></tr>
+          <tr><td><code>-f</code> / <code>--text-file</code></td><td>テキストをファイルから読む</td></tr>
+          <tr><td><code>-O</code> / <code>--output</code></td><td>出力ファイル名</td></tr>
+          <tr><td><code>-o</code> / <code>--output-dir</code></td><td>書き出し先（既定 <code>output/</code>）</td></tr>
+          <tr><td><code>-l</code> / <code>--language</code></td><td>ja / en</td></tr>
+          <tr><td><code>-r</code> / <code>--reference</code></td><td>参照音声（クローン）</td></tr>
+          <tr><td><code>--voice-design</code></td><td>文章で声を指定する</td></tr>
+          <tr><td><code>--seed</code></td><td>乱数シード</td></tr>
+          <tr><td><code>--speed</code></td><td>話速（irodori のみ）</td></tr>
+          <tr><td><code>-v</code> / <code>--verbose</code></td><td>エンジン自身の出力も見る</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="note">
-      <b>対応していないオプションはエラーになる</b>
+      <b>対応していない指定はエラーになる</b>
       <p>
-        黙って無視されることはない。判定はモデルを読み込む前に行われるので、
-        待たされずにすぐ失敗する。
+        黙って無視されることはない。しかもエンジンを起動する前に判定するので、
+        待たされずに失敗する（<code>tts synth -e irodori -l en</code> は 0.1 秒でエラー）。
       </p>
     </div>
   </div>
@@ -455,78 +511,62 @@ samples/    <span class="cm">台本とバッチ入力の例</span></div>
   <div class="wrap">
     <h2>オリジナルの声を作る <span class="tag">--voice-design</span></h2>
     <p>
-      文章で声の特徴を書くと、実在の人物に依存しない声を作れる。
-      ただし<b>生成のたびに少しずつ変わる</b>ので、気に入った声は
-      マスター音声に固定して、以降はそれをクローンして使う。
+      実在の人物に頼らずに、文章の指示だけから声を作れる。ただし
+      <b>生成のたびに少し揺れる</b>ので、気に入った 1 本を「マスター音声」として
+      残し、以後はそれをクローンして使い回すのが安定する。
     </p>
 
     <ol class="steps">
       <li>
         <div class="t">声を試す <small>— 指示文を変えて何本か作って聴き比べる</small></div>
         <div class="cmd">
-          <div class="label">seed は固定しておくと、違いが指示文によるものだと分かる</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--seed</span> 42 <span class="f">--lang</span> ja <span class="f">--out</span> voices\try01.wav <span class="s">`</span>
-      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="s">`</span>
-      <span class="f">--text</span> <span class="s">"この声でどうでしょうか。"</span></pre>
+          <div class="label">seed を固定しておくと、違いが指示文によるものだと分かる</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-l</span> ja <span class="f">--seed</span> 42 <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-t</span> <span class="s">"この声でどうでしょうか。名前は霊夢といいます。"</span> <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-o</span> input\voices <span class="f">-O</span> try01.wav</pre>
         </div>
       </li>
-
       <li>
-        <div class="t">マスター音声にする <small>— 長めの台詞で 1 本だけ作って保存</small></div>
+        <div class="t">マスター音声にする <small>— 決まったら長めの台詞で 1 本作る</small></div>
         <div class="cmd">
-          <div class="label">irodori は 30 秒以上あると安定する（上限 120 秒）</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--seed</span> 42 <span class="f">--lang</span> ja <span class="f">--out</span> voices\reimu_master.wav <span class="s">`</span>
-      <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="s">`</span>
-      <span class="f">--text-file</span> voices\master_script.txt</pre>
+          <div class="label">30 秒以上あると、以後のクローンが安定する</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-l</span> ja <span class="f">--seed</span> 42 <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">--voice-design</span> <span class="s">"落ち着いた低めの女性の声。丁寧で穏やかな話し方。"</span> <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-f</span> input\voices\master_script.txt <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-o</span> input\voices <span class="f">-O</span> reimu_master.wav</pre>
         </div>
       </li>
-
       <li>
-        <div class="t">以降はクローンして使う <small>— 声がぶれなくなる</small></div>
+        <div class="t">以後はクローンで使う <small>— 声がぶれなくなる</small></div>
         <div class="cmd">
-          <div class="label">--voice-design ではなく --ref を使う</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> irodori <span class="f">--ref</span> voices\reimu_master.wav <span class="s">`</span>
-      <span class="f">--text</span> <span class="s">"マスター音声から再現した声です。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav</pre>
-        </div>
-      </li>
-
-      <li>
-        <div class="t">英語版も同じ声で <small>— マスター音声を qwen に渡す</small></div>
-        <div class="cmd">
-          <div class="label">irodori は英語を出せないので、ここだけエンジンを替える</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--lang</span> en <span class="f">--ref</span> voices\reimu_master.wav <span class="s">`</span>
-      <span class="f">--ref-text</span> <span class="s">"こんにちは。私はこのキャラクターの声です。"</span> <span class="s">`</span>
-      <span class="f">--text</span> <span class="s">"This is the same character speaking English."</span> <span class="f">--out</span> outputs\en.wav</pre>
+          <div class="label">指示文はもう要らない</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> irodori <span class="f">-l</span> ja <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-r</span> reimu_master.wav <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-t</span> <span class="s">"今日も一日がんばりましょう。"</span></pre>
         </div>
       </li>
     </ol>
 
     <h3>指示文の書き方</h3>
-    <p>次の軸で書く。全部詰め込むより <b>3〜4 要素に絞る</b>ほうが安定する。</p>
+    <p>全部を詰め込むより、3〜4 要素に絞るほうが安定する。</p>
     <div class="scroll">
       <table>
-        <thead><tr><th style="min-width:120px">軸</th><th>例</th></tr></thead>
+        <thead><tr><th>軸</th><th>例</th></tr></thead>
         <tbody>
           <tr><td>性別・年齢</td><td>若い女性、少年、中年の男性、老人</td></tr>
-          <tr><td>声の高さ・質</td><td>低め、高め、掠れた、澄んだ、ハスキー</td></tr>
+          <tr><td>声の高さ・質</td><td>低め、高め、掠れた、澄んだ、ハスキー、太い</td></tr>
           <tr><td>話し方</td><td>丁寧、ぶっきらぼう、早口、ゆっくり、淡々と</td></tr>
-          <tr><td>感情・態度</td><td>楽しそうに、呆れたように、落ち着いて</td></tr>
+          <tr><td>感情・態度</td><td>楽しそうに、呆れたように、落ち着いて、緊張気味に</td></tr>
         </tbody>
       </table>
-    </div>
-
-    <div class="cmd">
-      <div class="label">実際に使える指示文の例</div>
-<pre>落ち着いた低めの女性の声。丁寧で穏やかな話し方。
-元気で明るい少女の声。やや早口で、楽しそうに話す。
-少し掠れた低い男性の声。ぶっきらぼうだが芯がある。</pre>
     </div>
 
     <div class="note warn">
       <b>エンジンごとの制約</b>
       <p>
         <b>chatterbox</b> は Voice Design に非対応（クローンのみ）。
-        <b>qwen</b> は <code>--voice-design</code> と <code>--ref</code> を併用できない。
+        <b>qwen</b> は <code>--voice-design</code> と <code>-r</code> を併用できない。
         <b>irodori</b> は併用でき、そのときは<b>声質＝参照音声・話し方＝指示文</b>になる。
         日本語の声を作るなら irodori が確実。
       </p>
@@ -534,23 +574,24 @@ samples/    <span class="cm">台本とバッチ入力の例</span></div>
   </div>
 </section>
 
-<!-- ====================================================== クローン -->
+<!-- ======================================================= クローン -->
 <section id="clone">
   <div class="wrap">
-    <h2>声をクローンする <span class="tag">--ref</span></h2>
-    <p>参照音声を渡すだけ。3 エンジンとも対応している。</p>
+    <h2>声をクローンする <span class="tag">-r / --reference</span></h2>
+    <p>手元の音声から声を複製する。参照音声は <code>input/voices/</code> から探される。</p>
 
     <div class="cmd">
-      <div class="label">chatterbox / irodori — 書き起こしは不要</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> chatterbox <span class="f">--ref</span> voices\alice.wav <span class="s">`</span>
-      <span class="f">--text</span> <span class="s">"クローンした声で話しています。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\a.wav</pre>
+      <div class="label">基本</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> qwen <span class="f">-l</span> ja <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-r</span> master.wav <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-t</span> <span class="s">"参照音声からクローンした声で話しています。"</span></pre>
     </div>
 
     <div class="cmd">
-      <div class="label">qwen — 書き起こしを渡すと品質が上がる</div>
-<pre><span class="p">&gt; </span>tts synth <span class="f">--engine</span> qwen <span class="f">--ref</span> voices\alice.wav <span class="s">`</span>
-      <span class="f">--ref-text</span> <span class="s">"参照音声で実際に話している内容"</span> <span class="s">`</span>
-      <span class="f">--text</span> <span class="s">"おはようございます。"</span> <span class="f">--lang</span> ja <span class="f">--out</span> outputs\b.wav</pre>
+      <div class="label">Qwen は書き起こしがあると品質が上がる</div>
+<pre><span class="p">&gt; </span>tts synth <span class="f">-e</span> qwen <span class="f">-l</span> ja <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-r</span> master.wav <span class="f">--reference-text</span> <span class="s">"参照音声で話している内容"</span> <span class="c">`</span>
+<span class="p">&gt;&gt; </span>    <span class="f">-t</span> <span class="s">"おはようございます。"</span></pre>
     </div>
 
     <div class="scroll">
@@ -564,6 +605,15 @@ samples/    <span class="cm">台本とバッチ入力の例</span></div>
       </table>
     </div>
     <p>いずれもノイズ・BGM のないきれいな音声を使う。</p>
+
+    <div class="note">
+      <b>日英で同じ声を出す</b>
+      <p>
+        irodori は日本語しか出せない。日本語版は irodori で作り、
+        同じマスター音声を <code>-r</code> に渡して qwen か chatterbox で
+        英語版を作ると、同じ声のまま二言語を揃えられる。
+      </p>
+    </div>
   </div>
 </section>
 
@@ -572,34 +622,41 @@ samples/    <span class="cm">台本とバッチ入力の例</span></div>
   <div class="wrap">
     <h2>台本からまとめて作る <span class="tag">tts script</span></h2>
     <p>
-      複数のキャラクターが会話する台本から、台詞ごとの wav を一度に作る。
-      <b>声の定義と台詞を別ファイルに分ける</b>ので、台本には「誰が」「何を」しか書かない。
+      声の定義は一度書けば使い回せる。毎回書くのは台詞だけ。
+      話者ごとにエンジンが違ってもよい。
     </p>
 
     <div class="cmd">
-      <div class="label">① cast.toml — キャラクターの声。最初に一度だけ書く</div>
-<pre><span class="cm"># 日本語名はクォートが必要（[voices.霊夢] は構文エラー）</span>
-[voices.<span class="s">"霊夢"</span>]
+      <div class="label">input/script/cast.toml — 声の定義（最初に一度）</div>
+<pre><span class="cm">[voices."霊夢"]</span>
 engine = <span class="s">"irodori"</span>
-voice_design = <span class="s">"落ち着いた少女の声。淡々と話す。"</span>
+voice_design = <span class="s">"落ち着いた少女の声。淡々としていて、少し呆れたような話し方。"</span>
 language = <span class="s">"ja"</span>
 seed = 42
 
-[voices.<span class="s">"魔理沙"</span>]
+<span class="cm">[voices."魔理沙"]</span>
 engine = <span class="s">"irodori"</span>
-reference_audio = <span class="s">"../../voices/marisa.wav"</span>   <span class="cm"># この toml からの相対</span>
+reference_audio = <span class="s">"../voices/marisa_master.wav"</span>   <span class="cm"># cast.toml からの相対</span>
 language = <span class="s">"ja"</span>
 
-[voices.<span class="s">"ナレーター"</span>]
+<span class="cm">[voices."ナレーター"]</span>
 engine = <span class="s">"qwen"</span>
-language = <span class="s">"ja"</span></pre>
+language = <span class="s">"ja"</span>
+seed = 100</pre>
+    </div>
+
+    <div class="note warn">
+      <b>日本語のキャラクター名はクォートが必要</b>
+      <p>
+        TOML の仕様上、クォートなしのテーブル名に使えるのは半角英数字と
+        <code>_</code> <code>-</code> だけ。<code>[voices.霊夢]</code> は構文エラーになるので
+        <code>[voices."霊夢"]</code> と書く。
+      </p>
     </div>
 
     <div class="cmd">
-      <div class="label">② ep01.ja.txt — 台詞。毎回書くのはこちらだけ</div>
-<pre><span class="cm"># ■ オープニング</span>
-
-ナレーター: ある晴れた日のこと。
+      <div class="label">input/script/ep01.ja.txt — 台詞（毎回書くのはこれだけ）</div>
+<pre><span class="cm"># ある晴れた日</span>
 
 霊夢: 今日はいい天気ね。
 魔理沙: そうだな、絶好の弾幕日和だぜ！
@@ -607,77 +664,39 @@ language = <span class="s">"ja"</span></pre>
 霊夢<span class="f">[speed=0.9]</span>: ……また変なこと言ってる。
 魔理沙<span class="f">[id=punchline]</span>: やった、ごちそうさま！
 
-<span class="cm"># インデントで長い台詞を折り返せる</span>
-霊夢: まあいいわ。
-  お茶でも淹れてくるから、
-  そこで待ってなさい。</pre>
+霊夢: 長い台詞は
+  インデントした行で続けられる。</pre>
     </div>
-
-    <div class="cmd">
-      <div class="label">③ 実行する</div>
-<pre><span class="p">&gt; </span>tts script <span class="f">--cast</span> samples\script\cast.toml <span class="f">--script</span> samples\script\ep01.ja.txt <span class="f">--outdir</span> outputs\ep01
-
-<span class="out">7 台詞 / 3 キャラクター / エンジン: qwen, irodori
-
---- qwen (1 台詞) ---
-[001] ナレーター  1.84秒  ある晴れた日のこと。
-
---- irodori (6 台詞) ---
-[002] 霊夢  2.64秒  今日はいい天気ね。
-[003] 魔理沙  3.84秒  そうだな、絶好の弾幕日和だぜ！
-...
-
-7/7 台詞を生成。合計 23.8 秒</span></pre>
-    </div>
-
-    <h3>台本の書き方</h3>
-    <div class="scroll">
-      <table>
-        <thead><tr><th style="min-width:150px">書き方</th><th>意味</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">話者: 台詞</td><td>1 行 1 台詞。コロンは半角でも全角でもよい</td></tr>
-          <tr><td class="mono"># コメント</td><td>無視される。セクションの見出しに使う</td></tr>
-          <tr><td class="mono">（空行）</td><td>無視される。場面の区切りに自由に入れてよい</td></tr>
-          <tr><td class="mono">　インデント行</td><td>直前の台詞の続き。<b>区切り文字なしで連結</b>される</td></tr>
-          <tr><td class="mono">話者[key=値]: 台詞</td><td>その台詞だけ上書き。<code>id</code> <code>speed</code> <code>seed</code> <code>lang</code></td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="note warn">
-      <b>英語の台詞はインデント継続を使わない</b>
-      <p>
-        継続行は区切り文字なしで連結されるので（日本語に空白が入らないようにするため）、
-        英語だと <code>Hello.How are you?</code> のように単語がくっつく。1 行に収めること。
-      </p>
-    </div>
-
-    <h3>出力</h3>
-    <div class="files">outputs/ep01/
-  001-ナレーター.wav
-  002-霊夢.wav
-  003-魔理沙.wav
-  …
-  007-punchline.wav      <span class="cm">← [id=punchline] を付けた台詞</span>
-  manifest.json          <span class="cm">← 台詞ごとの尺と開始位置</span></div>
 
     <p>
-      ファイル名の先頭が台本の並び順。<code>manifest.json</code> には
-      先頭からの累積オフセット（<code>start_sec</code>）が入るので、Remotion の
-      <code>&lt;Sequence from={...}&gt;</code> にそのまま使える。
+      角括弧で <code>id</code> / <code>speed</code> / <code>seed</code> /
+      <code>lang</code> を台詞ごとに上書きできる。
+      継続行は<b>区切り文字なしで連結される</b>（日本語に余計な空白が入らないように）。
     </p>
 
-    <div class="note">
-      <b>モデルの読み込みは 1 エンジンにつき 1 回</b>
-      <p>
-        エンジン単位でまとめて処理するので、進捗表示は台本順ではなくエンジンごとに
-        まとまって出る。キャラクターを増やしてもエンジンが同じなら追加コストはない。
-      </p>
+    <div class="cmd">
+      <div class="label">実行</div>
+<pre><span class="p">&gt; </span>tts script ep01.ja.txt <span class="f">-c</span> cast.toml <span class="f">-o</span> output\ep01
+
+<span class="out">[info] 7 lines / 3 characters / engines: qwen, irodori
+--- qwen (1 lines) ---
+[001] ナレーター   1.84s  ある晴れた日のこと。
+--- irodori (6 lines) ---
+[002] 霊夢         2.64s  今日はいい天気ね。
+[003] 魔理沙       3.84s  そうだな、絶好の弾幕日和だぜ！
+...
+[info] 7/7 lines synthesized</span></pre>
     </div>
 
-    <p style="font-size:13.5px;color:var(--muted)">
-      台本の詳しい仕様は <code>docs/guide/script.md</code>、
-      声の作り方は <code>docs/guide/original-voice.md</code> にある。
+    <div class="files">output/ep01/001-ナレーター.wav
+output/ep01/002-霊夢.wav
+output/ep01/007-punchline.wav   <span class="cm">id を付けた台詞</span>
+output/ep01/manifest.json       <span class="cm">尺と先頭からの秒数</span></div>
+
+    <p>
+      <code>manifest.json</code> の <code>start_sec</code> は先頭からの累積オフセット。
+      動画側で「この秒から流す」の計算にそのまま使える。
+      <code>--gap</code> は<b>この計算に使うだけ</b>で、wav に無音は足さない。
     </p>
   </div>
 </section>
@@ -687,36 +706,34 @@ language = <span class="s">"ja"</span></pre>
   <div class="wrap">
     <h2>JSON からまとめて作る <span class="tag">tts batch</span></h2>
     <p>
-      台本を使わず、機械的に生成した JSON から流したいときはこちら。
-      キャラクターの概念はなく、1 行 = 1 リクエスト。
+      キャラクターが要らないなら、こちらのほうが単純。
+      モデルは 1 回だけロードされ、2 件目以降はロード時間を払わない。
     </p>
 
     <div class="cmd">
-      <div class="label">入力 JSON</div>
+      <div class="label">input/batch/sample.ja.json</div>
 <pre>[
   {<span class="s">"id"</span>: <span class="s">"line-001"</span>, <span class="s">"text"</span>: <span class="s">"こんにちは。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>},
-  {<span class="s">"id"</span>: <span class="s">"line-002"</span>, <span class="s">"text"</span>: <span class="s">"今日はいい天気ですね。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>, <span class="s">"seed"</span>: 42},
-  {<span class="s">"id"</span>: <span class="s">"line-003"</span>, <span class="s">"text"</span>: <span class="s">"クローンもできます。"</span>, <span class="s">"language"</span>: <span class="s">"ja"</span>,
-   <span class="s">"reference_audio"</span>: <span class="s">"ref/alice.wav"</span>}
+  {<span class="s">"id"</span>: <span class="s">"line-002"</span>, <span class="s">"text"</span>: <span class="s">"今日はいい天気ですね。"</span>, <span class="s">"seed"</span>: 42}
 ]</pre>
     </div>
 
     <div class="cmd">
-      <div class="label">実行する</div>
-<pre><span class="p">&gt; </span>tts batch <span class="f">--engine</span> qwen <span class="f">--input</span> samples\input.ja.json <span class="f">--outdir</span> outputs\batch</pre>
+      <div class="label">実行</div>
+<pre><span class="p">&gt; </span>tts batch <span class="f">-e</span> qwen sample.ja.json <span class="f">-o</span> output\batch
+<span class="p">&gt; </span>tts batch <span class="f">-e</span> qwen sample.ja.json <span class="f">--keep-going</span>   <span class="cm"># 失敗しても続ける</span></pre>
     </div>
 
-    <ul class="plain">
-      <li>使えるキー: <code>id</code> <code>text</code> <code>language</code>
-          <code>reference_audio</code> <code>reference_text</code>
-          <code>voice_design</code> <code>seed</code> <code>speed</code></li>
-      <li><code>reference_audio</code> は<b>入力 JSON からの相対パス</b>で解決される</li>
-      <li>1 件失敗しても続けたいときは <code>--keep-going</code></li>
-    </ul>
+    <p>
+      使えるキーは <code>id</code> / <code>text</code> / <code>language</code> /
+      <code>reference_audio</code> / <code>reference_text</code> /
+      <code>voice_design</code> / <code>seed</code> / <code>speed</code>。
+      <code>reference_audio</code> は<b>入力 JSON からの相対パス</b>で解決される。
+    </p>
   </div>
 </section>
 
-<!-- =================================================== どれを使う -->
+<!-- ==================================================== どれを使う -->
 <section id="which">
   <div class="wrap">
     <h2>どのエンジンを使うか</h2>
@@ -725,13 +742,8 @@ language = <span class="s">"ja"</span></pre>
       <table>
         <thead>
           <tr>
-            <th>エンジン</th>
-            <th class="ctr">日本語</th>
-            <th class="ctr">英語</th>
-            <th class="ctr">クローン</th>
-            <th class="ctr">声の設計</th>
-            <th class="ctr">話速</th>
-            <th>速度</th>
+            <th>エンジン</th><th>日本語</th><th>英語</th><th>クローン</th>
+            <th>声を作る</th><th>話速</th><th>速さ</th>
           </tr>
         </thead>
         <tbody>
@@ -757,19 +769,16 @@ language = <span class="s">"ja"</span></pre>
       </table>
     </div>
 
-    <ul class="plain">
-      <li><b>まず試すなら chatterbox</b> — 軽くて速い</li>
-      <li><b>日英を同じ声で出すなら qwen</b> — 1 本で両言語をまかなえる</li>
-      <li><b>日本語のキャラクターなら irodori</b> — 48 kHz で表現力が高い。ただし英語は出せない</li>
-    </ul>
-
-    <div class="note">
-      <b>日英の両方が要るとき</b>
-      <p>
-        irodori で日本語の声を作ってマスター音声に固定し、
-        英語版はそれを <code>--ref</code> で qwen か chatterbox に渡す。
-        同一人物に聞こえるかは必ず耳で確認すること。
-      </p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>やりたいこと</th><th>選ぶもの</th></tr></thead>
+        <tbody>
+          <tr><td>とりあえず動かす</td><td><span class="n">chatterbox</span>（いちばん軽い）</td></tr>
+          <tr><td>日本語キャラクターを作り込む</td><td><span class="n">irodori</span>（48 kHz、話速も効く）</td></tr>
+          <tr><td>英語も出したい</td><td><span class="n">qwen</span> か <span class="n">chatterbox</span></td></tr>
+          <tr><td>参照音声から高品質にクローン</td><td><span class="n">qwen</span>（書き起こしを添える）</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
@@ -781,46 +790,49 @@ language = <span class="s">"ja"</span></pre>
 
     <div class="scroll">
       <table>
-        <thead><tr><th style="min-width:200px">症状</th><th>対処</th></tr></thead>
+        <thead><tr><th>症状</th><th>すること</th></tr></thead>
         <tbody>
           <tr>
-            <td><code>未構築</code> と出る</td>
-            <td><code>tts engines</code> で確認し、
-                <code>pwsh scripts\setup_engines.ps1 -Engines irodori</code> で個別に作り直す</td>
+            <td>エンジンが起動しない</td>
+            <td><code>tts doctor</code> で仮想環境と CUDA を確認する</td>
           </tr>
           <tr>
-            <td>生成が遅い</td>
-            <td><code>tts doctor</code> で <code>CUDA 利用不可</code> が出ていないか見る</td>
+            <td>合成が失敗する</td>
+            <td><code>-v</code> を付けてエンジン自身の出力を見る</td>
           </tr>
           <tr>
-            <td>エラーの詳細が見たい</td>
-            <td><code>--verbose</code> を付けるとエンジンのログがそのまま流れる</td>
+            <td>「does not support ...」と言われる</td>
+            <td><code>tts engines</code> で何が使えるか確認する</td>
+          </tr>
+          <tr>
+            <td>生成が途中で切れる</td>
+            <td>文単位に分けて <code>tts batch</code> で流す</td>
+          </tr>
+          <tr>
+            <td>声が毎回変わる</td>
+            <td><code>--seed</code> を固定する。決まったらマスター音声にしてクローンする</td>
+          </tr>
+          <tr>
+            <td>日本語が不自然</td>
+            <td><span class="n">irodori</span> に変える（日本語専用で 48 kHz）</td>
           </tr>
           <tr>
             <td>VRAM が足りない</td>
-            <td><code>python/engines.toml</code> の qwen のモデル ID を <code>0.6B</code> 版に変える</td>
+            <td><code>tool_config.py</code> で qwen を 0.6B に下げる</td>
           </tr>
           <tr>
-            <td>タイムアウトする</td>
-            <td><code>TTS_SAMPLE_READY_TIMEOUT</code>（既定 1800 秒）と
-                <code>TTS_SAMPLE_SYNTH_TIMEOUT</code>（既定 900 秒）で延ばせる</td>
-          </tr>
-          <tr>
-            <td>日本語が文字化けする</td>
-            <td>ターミナルのコードページを確認する（<code>chcp 65001</code>）</td>
-          </tr>
-          <tr>
-            <td>毎回違う声になる</td>
-            <td><code>--seed</code> を固定する。Voice Design はマスター音声に固定して
-                <code>--ref</code> に切り替える</td>
-          </tr>
-          <tr>
-            <td>台詞がくっついて読まれる</td>
-            <td>英語の台詞をインデント継続で書いている。1 行に収める</td>
+            <td>初回が終わらない</td>
+            <td>モデル重みのダウンロード。合計 10GB 前後かかる</td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <p>
+      詳しくは <code>docs/cli/</code>（コマンド別）、
+      <code>docs/gui/usage.md</code>（画面）、
+      <code>docs/setup/</code>（導入とトラブルシュート）。
+    </p>
   </div>
 </section>
 

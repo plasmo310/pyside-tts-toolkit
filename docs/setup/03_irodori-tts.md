@@ -20,8 +20,9 @@ Irodori-TTS は **PyPI に公開されていない**。さらに依存の `dacva
 継承されないため、git 依存として取り込むと PyTorch が CPU 版になってしまう。
 
 そのため**上流リポジトリを clone し、そのリポジトリの依存解決をそのまま使う**のが
-唯一確実な経路になる。`python/engines/irodori/runner.py` は clone したリポジトリを
-`sys.path` に足して `irodori_tts` を import する。
+唯一確実な経路になる。clone は非パッケージ扱いで仮想環境には入らないので、
+`tool_config.py` が clone の場所を runner の検索パス (`python_path`) に足し、
+runner はそれを前提に `irodori_tts` を import する。
 
 仮想環境の置き場だけは他のエンジンと揃えて `.venvs/engine-irodori` にしてあり、
 clone の中には作られない。
@@ -35,16 +36,15 @@ clone の中には作られない。
 ### 2. clone する
 
 ```powershell
-cd python\engines\irodori
-New-Item -ItemType Directory -Force vendor | Out-Null
-git clone --depth 1 https://github.com/Aratako/Irodori-TTS.git vendor\Irodori-TTS
+New-Item -ItemType Directory -Force engine_env\irodori\vendor | Out-Null
+git clone --depth 1 https://github.com/Aratako/Irodori-TTS.git `
+    engine_env\irodori\vendor\Irodori-TTS
 ```
 
 ### 3. Windows + Python 3.12 向けのパッチを当てる
 
 ```powershell
-cd ..\..\..
-.\.venvs\common\Scripts\python.exe python\engines\irodori\patch_vendor.py
+.\.venvs\common\Scripts\python.exe engine_env\irodori\patch_vendor.py
 ```
 
 このスクリプトは clone したリポジトリに次の 3 点を加える（冪等）。
@@ -78,8 +78,9 @@ error: Unable to find a compatible Visual Studio installation.
 ### 4. venv を作る
 
 ```powershell
-cd python\engines\irodori\vendor\Irodori-TTS
+cd engine_env\irodori\vendor\Irodori-TTS
 mise exec -- uv sync --extra cu128
+cd ..\..\..\..
 ```
 
 `--extra` で PyTorch のバックエンドを選ぶ。排他なのでどれか 1 つだけ。
@@ -94,8 +95,7 @@ mise exec -- uv sync --extra cu128
 ### 5. 動作確認
 
 ```powershell
-cd ..\..\..\..\..
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine irodori --text "こんにちは。" --lang ja --out outputs\ir.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "こんにちは。" -l ja -O ir.wav
 ```
 
 初回はチェックポイント（v4.1 Small、約 0.8B）とコーデック
@@ -106,9 +106,9 @@ cd ..\..\..\..\..
 参照音声を渡すだけ。書き起こしは不要。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine irodori `
-    --text "参照音声からクローンした声で話しています。" --lang ja `
-    --ref samples\ref\alice.wav --out outputs\ir_clone.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori `
+    -t "参照音声からクローンした声で話しています。" -l ja `
+    -r alice.wav -O ir_clone.wav
 ```
 
 参照音声の条件:
@@ -124,8 +124,8 @@ cd ..\..\..\..\..
 3 エンジンのうち Irodori だけが `--speed` に対応している。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine irodori --text "テスト" --lang ja --speed 0.8 --out outputs\slow.wav
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine irodori --text "テスト" --lang ja --speed 1.3 --out outputs\fast.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "テスト" -l ja --speed 0.8 -O slow.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "テスト" -l ja --speed 1.3 -O fast.wav
 ```
 
 内部では Irodori の `duration_scale` に逆数を渡している（`duration_scale` は
@@ -134,18 +134,21 @@ cd ..\..\..\..\..
 
 Qwen と Chatterbox に `--speed` を渡すと、黙殺されずにエラーになる。
 
-## 設定 (`python/engines.toml`)
+## 設定 (`python/ttstoolkit/tool_config.py`)
 
-```toml
-[irodori.options]
-hf_checkpoint = "Aratako/Irodori-TTS-v4.1-Small"
-codec_repo = "Aratako/Semantic-DACVAE-Japanese-32dim"
-model_precision = "fp32"
-num_steps = 24
-cfg_scale_text = 3.0
-cfg_scale_caption = 3.0
-cfg_scale_speaker = 5.0
-caption = ""
+`ENGINE_DEFINITIONS["irodori"].options` にある。
+
+```python
+options={
+    "hf_checkpoint": "Aratako/Irodori-TTS-v4.1-Small",
+    "codec_repo": "Aratako/Semantic-DACVAE-Japanese-32dim",
+    "model_precision": "fp32",
+    "num_steps": 24,
+    "cfg_guidance_mode": "independent",
+    "cfg_scale_text": 3.0,
+    "cfg_scale_caption": 3.0,
+    "cfg_scale_speaker": 5.0,
+}
 ```
 
 | キー | 説明 |
@@ -155,35 +158,35 @@ caption = ""
 | `num_steps` | Flow Matching のステップ数。下げると速く、上げると高品質 |
 | `cfg_scale_text` | テキストへの忠実さ |
 | `cfg_scale_speaker` | 参照音声への忠実さ |
-| `caption` | **Voice Design**。下記参照 |
+| `cfg_scale_caption` | Voice Design の指示への忠実さ |
 
 ## Voice Design（文章で声を作る）
 
-`caption` に日本語で声と話し方を書くと、その通りの声を作る。
+`--voice-design` に日本語で声と話し方を書くと、その通りの声を作る。
 Irodori の最大の特徴で、実在の人物に依存しないオリジナルキャラクターを作れる。
 
-```toml
-[irodori.options]
-caption = "落ち着いた低めの女性の声。丁寧で穏やかな話し方。"
+```powershell
+tts synth -e irodori -l ja `
+    -t "こんにちは。この声でナレーションを読み上げます。" `
+    --voice-design "落ち着いた低めの女性の声。丁寧で穏やかな話し方。" `
+    -o input\voices -O narrator_master.wav
 ```
 
-参照音声と併用もできる（声質は参照音声、話し方は caption）。
+Qwen と違い、Irodori は**参照音声と併用できる**。その場合は声質が参照音声、
+話し方が `--voice-design` になる。
+
+内部では Irodori の `caption` に渡している。作り込みの手順は
+[../guide/original-voice.md](../guide/original-voice.md) を参照。
 
 ### 絵文字による感情・非言語表現
 
 本文に絵文字を入れると、笑い・ため息・咳などを表現する。
 
 ```powershell
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine irodori `
-    --text "あははっ🤭、それ本当に言ってるの？…😮‍💨まぁ、君らしいけどね。" `
-    --lang ja --out outputs\emotion.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori `
+    -t "あははっ🤭、それ本当に言ってるの？…😮‍💨まぁ、君らしいけどね。" `
+    -l ja -O emotion.wav
 ```
-
-> [!note] 共通インターフェースとの関係
-> `caption` は現在の共通 IF（text / language / reference_audio / seed / speed）に
-> 含まれないため、`engines.toml` で全リクエスト共通に設定する形にしている。
-> runner はリクエストの `caption` キーも読むので、共通 IF に項目を足せば
-> そのままリクエスト単位で切り替えられる。
 
 ## VRAM の目安
 
@@ -198,7 +201,7 @@ caption = "落ち着いた低めの女性の声。丁寧で穏やかな話し方
 
 ## 英語版を作りたい場合
 
-Irodori は**英語を生成できない**。`--lang en` を渡すと共通層で
+Irodori は**英語を生成できない**。`-l en` を渡すと共通層で
 即座にエラーになる（モデルはロードされない）。
 
 日英両方が要るなら二段構成にする。
@@ -206,15 +209,15 @@ Irodori は**英語を生成できない**。`--lang en` を渡すと共通層�
 1. Irodori の Voice Design で日本語のキャラクター声を作る
 2. 30〜60 秒の良質な音声を「マスター音声」として保存する
 3. 日本語版は Irodori で生成
-4. 英語版はそのマスター音声を `--ref` に渡して Qwen または Chatterbox で生成
+4. 英語版はそのマスター音声を `-r/--reference` に渡して Qwen または Chatterbox で生成
 
 ```powershell
 # 日本語（Irodori）
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine irodori --text "こんにちは。" --lang ja --out outputs\ja.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e irodori -t "こんにちは。" -l ja -O ja.wav
 
 # 英語（マスター音声をクローンして Qwen で）
-.\.venvs\common\Scripts\python.exe -m tts_sample synth --engine qwen --text "Hello." --lang en `
-    --ref samples\ref\master.wav --ref-text "マスター音声の書き起こし" --out outputs\en.wav
+.\.venvs\common\Scripts\python.exe -m ttstoolkit.cli.synth -e qwen -t "Hello." -l en `
+    -r master.wav --reference-text "マスター音声の書き起こし" -O en.wav
 ```
 
 日英で音響モデルが違うため、同一人物に聞こえるかは必ず聴感で確認すること。
@@ -227,8 +230,9 @@ Irodori は**英語を生成できない**。`--lang en` を渡すと共通層�
 
 ### `No module named 'irodori_tts'`
 
-clone が無いか、場所が違う。`python/engines/irodori/vendor/Irodori-TTS/irodori_tts`
-が存在するか確認する。runner はこのパスを直接見ている。
+clone が無いか、場所が違う。`engine_env/irodori/vendor/Irodori-TTS/irodori_tts`
+が存在するか確認する。`tool_config.py` がこのパスを runner の検索パスに
+足している。
 
 ### `No interpreter found for Python 3.10`
 
@@ -239,7 +243,7 @@ clone が無いか、場所が違う。`python/engines/irodori/vendor/Irodori-TT
 
 参照音声が必要なチェックポイントに `no_ref` で投げている。runner は参照音声が
 無いとき自動で `no_ref=True` を立てるので通常は起きないが、別の
-チェックポイントに差し替えた場合に出ることがある。`--ref` を渡す。
+チェックポイントに差し替えた場合に出ることがある。`-r/--reference` を渡す。
 
 ## OpenAI 互換サーバという選択肢
 
@@ -254,9 +258,10 @@ curl http://localhost:8088/v1/audio/speech \
 ```
 
 このリポジトリはサブプロセス方式を採っているため使っていないが、
-Remotion 連携や GUI 化で常駐サーバが欲しくなったときの有力な選択肢になる。
-共通層の `TTSEngine` を実装した HTTP バックエンドを足せば、呼び出し側の
-コードを変えずに差し替えられる設計にしてある。
+常駐サーバが欲しくなったときの有力な選択肢になる。`TTSEngine`
+（`python/ttstoolkit/engine/interface.py`）を実装した HTTP バックエンドを足し、
+`registry.py` に分岐を 1 つ増やせば、呼び出し側のコードを変えずに
+差し替えられる設計にしてある。
 
 ## ライセンス
 

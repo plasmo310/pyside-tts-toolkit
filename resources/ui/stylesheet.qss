@@ -1,0 +1,542 @@
+/**
+ * TTS Toolkit Stylesheet
+ * 黒背景ベース + 青アクセントのダークテーマ。
+ *
+ * {RESOURCES_DIR} は起動時に resources/ の絶対パスへ置換される
+ * (tool_config.ToolConfig.load_stylesheet)。
+ *
+ * 色:
+ *   背景          #090a0d
+ *   パネル        #0f1216   枠 #2e333b
+ *   グループ      #14171c
+ *   入力欄        #0b0d11
+ *   文字          #ecedf0   補助 #9ea6b2   無効 #5b626d
+ *   アクセント青  #1f6be5   ボタン青 #1a3d85
+ */
+
+/* ── Global ──────────────────────────────────────────────────────────────── */
+QWidget {
+    color: #ecedf0;
+    font-family: "Yu Gothic UI", "Noto Sans JP", "Segoe UI", sans-serif;
+    font-size: 12px;
+}
+
+QMainWindow,
+[class="RootWidget"],
+[class="ContentArea"] {
+    background-color: #090a0d;
+}
+
+QWidget:disabled {
+    color: #5b626d;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+QTabWidget::pane {
+    background-color: #0f1216;
+    border: 1px solid #2e333b;
+    border-radius: 10px;
+    /* 左上はタブと地続きに見せたいので角を丸めない */
+    border-top-left-radius: 0;
+    top: -1px;
+}
+
+QTabBar {
+    background: transparent;
+}
+
+QTabBar::tab {
+    background-color: #06070a;
+    color: #9ea6b2;
+    border: 1px solid #2e333b;
+    border-bottom: none;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding: 0 24px;
+    /* Run / Cancel ボタンと高さを揃える */
+    min-height: 40px;
+    margin-right: 4px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+QTabBar::tab:hover {
+    background-color: #0b0d11;
+    color: #ecedf0;
+}
+
+QTabBar::tab:selected {
+    background-color: #0f1216;
+    color: #ecedf0;
+    border-color: #2e333b;
+}
+
+/* ── Form area (タブの中身) ─────────────────────────────────────────────── */
+QScrollArea[class="FormScroll"],
+QScrollArea[class="FormScroll"] > QWidget > QWidget,
+[class="FormArea"],
+[class="OptionRow"],
+[class="ButtonRow"] {
+    background: transparent;
+    border: none;
+}
+
+/* ── Panels ──────────────────────────────────────────────────────────────── */
+QFrame[class="Panel"] {
+    background-color: #0f1216;
+    border: 1px solid #2e333b;
+    border-radius: 10px;
+}
+
+QLabel[class="PanelHeader"] {
+    font-size: 13px;
+    font-weight: bold;
+    color: #9ea6b2;
+    background: transparent;
+    border: none;
+}
+
+/* ── Group box ───────────────────────────────────────────────────────────── */
+QGroupBox {
+    background-color: #14171c;
+    border: 1px solid #2e333b;
+    border-radius: 10px;
+    /* 見出しは枠の「内側」に置く。マージン側に置くと、チェックボックス
+       付きの見出し (Lyrics Sync) が上のカードに被ってしまうため */
+    margin-top: 0;
+    padding: 34px 14px 14px 14px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: padding;
+    subcontrol-position: top left;
+    left: 12px;
+    top: 10px;
+    padding: 0;
+    color: #9ea6b2;
+    background: transparent;
+}
+
+QGroupBox[class="LyricsGroup"] {
+    padding-top: 4px;
+    padding-bottom: 10px;
+}
+
+QGroupBox::indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: top left;
+    top: 10px;
+    margin-right: 6px;
+}
+
+QCheckBox[class="GroupHeader"] {
+    color: #9ea6b2;
+    font-weight: bold;
+}
+
+QCheckBox[class="GroupHeader"]:hover {
+    color: #ecedf0;
+}
+
+QGroupBox::title:hover {
+    color: #ecedf0;
+}
+
+QGroupBox:disabled {
+    border-color: #23272e;
+}
+
+/* ── Row label ───────────────────────────────────────────────────────────── */
+QLabel[class="RowLabel"] {
+    font-size: 12px;
+    color: #9ea6b2;
+    background: transparent;
+    border: none;
+}
+
+/* ── Text inputs ─────────────────────────────────────────────────────────── */
+QLineEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox {
+    background-color: #0b0d11;
+    color: #ecedf0;
+    border: 1px solid #2e333b;
+    border-radius: 6px;
+    padding: 0 10px;
+    min-height: 26px;
+    max-height: 26px;
+    font-size: 12px;
+    selection-background-color: #1a3d85;
+    selection-color: #ecedf0;
+}
+
+QLineEdit:hover,
+QComboBox:hover,
+QSpinBox:hover,
+QDoubleSpinBox:hover {
+    border-color: #3a4050;
+}
+
+QLineEdit:focus,
+QComboBox:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus {
+    border-color: #1f6be5;
+}
+
+QLineEdit:disabled,
+QComboBox:disabled,
+QSpinBox:disabled,
+QDoubleSpinBox:disabled {
+    background-color: #0c0e12;
+    color: #5b626d;
+    border-color: #23272e;
+}
+
+/* ── Combo box ───────────────────────────────────────────────────────────── */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 22px;
+    border: none;
+    background: transparent;
+}
+
+QComboBox::down-arrow {
+    image: url({RESOURCES_DIR}/ui/arrow_down.svg);
+    width: 12px;
+    height: 12px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #14171c;
+    color: #ecedf0;
+    border: 1px solid #2e333b;
+    border-radius: 6px;
+    padding: 4px;
+    outline: none;
+}
+
+QComboBox QAbstractItemView::item {
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 4px;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background-color: #1a3d85;
+}
+
+/* ── Spin box ────────────────────────────────────────────────────────────── */
+QSpinBox::up-button,
+QDoubleSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 20px;
+    border: none;
+    background: transparent;
+}
+
+QSpinBox::down-button,
+QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 20px;
+    border: none;
+    background: transparent;
+}
+
+QSpinBox::up-arrow,
+QDoubleSpinBox::up-arrow {
+    image: url({RESOURCES_DIR}/ui/arrow_up.svg);
+    width: 10px;
+    height: 10px;
+}
+
+QSpinBox::down-arrow,
+QDoubleSpinBox::down-arrow {
+    image: url({RESOURCES_DIR}/ui/arrow_down.svg);
+    width: 10px;
+    height: 10px;
+}
+
+/* ── Check box ───────────────────────────────────────────────────────────── */
+QCheckBox,
+QGroupBox::indicator {
+    background: transparent;
+}
+
+QCheckBox {
+    spacing: 8px;
+    min-height: 26px;
+    max-height: 26px;
+    font-size: 12px;
+}
+
+QCheckBox::indicator,
+QGroupBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #2e333b;
+    border-radius: 4px;
+    background-color: #0b0d11;
+}
+
+QCheckBox::indicator:hover,
+QGroupBox::indicator:hover {
+    border-color: #1f6be5;
+}
+
+QCheckBox::indicator:checked,
+QGroupBox::indicator:checked {
+    background-color: #1f6be5;
+    border-color: #1f6be5;
+    image: url({RESOURCES_DIR}/ui/check.svg);
+}
+
+QCheckBox::indicator:disabled,
+QGroupBox::indicator:disabled {
+    background-color: #0c0e12;
+    border-color: #23272e;
+}
+
+QCheckBox::indicator:checked:disabled,
+QGroupBox::indicator:checked:disabled {
+    background-color: #24384f;
+    border-color: #24384f;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+QPushButton {
+    background-color: #14171c;
+    color: #ecedf0;
+    border: 1px solid #2e333b;
+    border-radius: 6px;
+    padding: 0 14px;
+    min-height: 26px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QPushButton:hover {
+    background-color: #1e2228;
+    border-color: #3a4050;
+}
+
+QPushButton:pressed {
+    background-color: #2a2f38;
+}
+
+QPushButton:disabled {
+    background-color: #101317;
+    color: #5b626d;
+    border-color: #23272e;
+}
+
+QPushButton[class="EllipsisButton"] {
+    padding: 0;
+}
+
+QPushButton[class="ButtonAction"],
+QPushButton[class="ButtonBlue"] {
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    /* タブと同じ高さにする。Python 側で setFixedSize しても
+       スタイルシートの min-height に上書きされるのでここで決める */
+    min-height: 39px;
+    max-height: 39px;
+}
+
+QPushButton[class="ButtonBlue"] {
+    background-color: #1a3d85;
+    border-color: #1f6be5;
+    font-size: 13px;
+}
+
+QPushButton[class="ButtonBlue"]:hover {
+    background-color: #1f4a9a;
+}
+
+QPushButton[class="ButtonBlue"]:pressed {
+    background-color: #153566;
+}
+
+QPushButton[class="ButtonBlue"]:disabled {
+    background-color: #16213a;
+    color: #5b626d;
+    border-color: #23324d;
+}
+
+/* ── Log pane ────────────────────────────────────────────────────────────── */
+QPlainTextEdit[class="LogPane"] {
+    background-color: #08090b;
+    color: #ecedf0;
+    border: 1px solid #2e333b;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 12px;
+    selection-background-color: #2a4a7a;
+}
+
+/* ── Scroll bars ─────────────────────────────────────────────────────────── */
+QScrollBar:vertical {
+    background-color: transparent;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #2e333b;
+    border-radius: 5px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #3a4050;
+}
+
+QScrollBar:horizontal {
+    background-color: transparent;
+    height: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #2e333b;
+    border-radius: 5px;
+    min-width: 24px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #3a4050;
+}
+
+QScrollBar::add-line,
+QScrollBar::sub-line {
+    width: 0;
+    height: 0;
+}
+
+QScrollBar::add-page,
+QScrollBar::sub-page {
+    background: transparent;
+}
+
+/* スクロールする必要が無いときは、場所だけ空けてつまみは見せない */
+QScrollBar::handle:vertical:disabled,
+QScrollBar::handle:horizontal:disabled {
+    background: transparent;
+}
+
+/* ── Splitter ────────────────────────────────────────────────────────────── */
+QSplitter[class="MainSplitter"]::handle:vertical {
+    background-color: #14171c;
+    height: 6px;
+    margin: 3px 0;
+    border-radius: 3px;
+}
+
+QSplitter[class="MainSplitter"]::handle:vertical:hover {
+    background-color: #1f4a9a;
+}
+
+/* ── Menu bar ────────────────────────────────────────────────────────────── */
+QMenuBar {
+    background-color: #090a0d;
+    color: #ecedf0;
+    padding: 2px 6px;
+    border: none;
+}
+
+QMenuBar::item {
+    background: transparent;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+QMenuBar::item:selected {
+    background-color: #1a3d85;
+}
+
+QMenu {
+    background-color: #14171c;
+    border: 1px solid #2e333b;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+QMenu::item {
+    padding: 6px 18px;
+    border-radius: 6px;
+}
+
+QMenu::item:selected {
+    background-color: #1a3d85;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #2e333b;
+    margin: 6px 8px;
+}
+
+/* ── Message box ─────────────────────────────────────────────────────────── */
+QMessageBox {
+    background-color: #0f1216;
+}
+
+QMessageBox QLabel {
+    background: transparent;
+    color: #ecedf0;
+}
+
+QMessageBox QPushButton {
+    min-width: 84px;
+}
+
+/* ── Tooltip ─────────────────────────────────────────────────────────────── */
+QToolTip {
+    background-color: #14171c;
+    color: #ecedf0;
+    border: 1px solid #2e333b;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+/* ── Multi-line text inputs (TTS Toolkit) ────────────────────────────────── */
+QPlainTextEdit[class="TextArea"] {
+    background-color: #0b0d11;
+    color: #ecedf0;
+    border: 1px solid #2e333b;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    selection-background-color: #1a3d85;
+    selection-color: #ecedf0;
+}
+
+QPlainTextEdit[class="TextArea"]:hover {
+    border-color: #3a4050;
+}
+
+QPlainTextEdit[class="TextArea"]:focus {
+    border-color: #1f6be5;
+}
+
+QPlainTextEdit[class="TextArea"]:disabled {
+    background-color: #0c0e12;
+    color: #5b626d;
+    border-color: #23272e;
+}
+
+/* ── Tab hint (TTS Toolkit) ──────────────────────────────────────────────── */
+QLabel[class="HintLabel"] {
+    color: #9ea6b2;
+    font-size: 12px;
+    padding: 0 2px;
+}
