@@ -199,6 +199,42 @@ def test_output_name_uses_index_and_id(tmp_path) -> None:
     assert script.lines[1].output_name() == "002-punchline.wav"
 
 
+def test_output_name_prefix_overrides_automatic_numbering(tmp_path) -> None:
+    """行頭の出力名をそのまま wav 名に使えること。"""
+    cast = parse_cast(cast_file(tmp_path))
+    path = write(
+        tmp_path,
+        "ep.txt",
+        "[001-001-plasmo] ナレーター: Hello everyone!\n霊夢: 二。\n",
+    )
+    script = parse_script(path, cast)
+    assert script.lines[0].output_name_override == "001-001-plasmo"
+    assert script.lines[0].output_name() == "001-001-plasmo.wav"
+    assert script.lines[1].output_name() == "002-霊夢.wav"
+
+
+def test_duplicate_output_names_are_rejected(tmp_path) -> None:
+    """明示名と自動名が衝突すると上書きを防ぐこと。"""
+    cast = parse_cast(cast_file(tmp_path))
+    path = write(
+        tmp_path,
+        "ep.txt",
+        "[002-霊夢] ナレーター: 一。\n霊夢: 二。\n",
+    )
+    with pytest.raises(ScriptError) as error:
+        parse_script(path, cast)
+    assert "Duplicated output names" in str(error.value)
+
+
+@pytest.mark.parametrize("output_name", ["", "bad/name", "bad."])
+def test_invalid_output_name_is_rejected(tmp_path, output_name: str) -> None:
+    """行頭の出力名は Windows ファイル名として安全であること。"""
+    cast = parse_cast(cast_file(tmp_path))
+    path = write(tmp_path, "ep.txt", f"[{output_name}] 霊夢: 台詞。\n")
+    with pytest.raises(ScriptError):
+        parse_script(path, cast)
+
+
 def test_engines_used_keeps_first_appearance_order(tmp_path) -> None:
     """エンジン単位でまとめて処理するので、登場順が保たれること。"""
     cast = parse_cast(cast_file(tmp_path))

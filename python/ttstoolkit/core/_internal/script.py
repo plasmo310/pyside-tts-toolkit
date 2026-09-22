@@ -18,6 +18,7 @@
     霊夢: 今日はいい天気ね。
     魔理沙: ぜんぜんダメだぜ！
 
+    [001-001-plasmo] Plasmo: Hello everyone!
     霊夢[speed=0.9]: ゆっくり話すわ。
     魔理沙[id=punchline]: それでもいいのか？
 
@@ -47,6 +48,9 @@ _LINE_RE = re.compile(
     r"\s*[:：]\s*"
     r"(?P<text>.*)$"
 )
+
+# 行頭の [出力名]。拡張子は出力時に .wav を補う。
+_OUTPUT_NAME_RE = re.compile(r"^\[(?P<output_name>[^\[\]]+)\]\s*")
 
 # 台詞の行に書けるオプション
 _LINE_OPTION_KEYS = ("id", "speed", "seed", "lang", "volume")
@@ -104,6 +108,7 @@ class ScriptLine:
         voice: 話者名。
         text: 読み上げるテキスト。
         line_no: 台本内の行番号 (エラーメッセージ用)。
+        output_name_override: 行頭で指定された出力ファイル名（拡張子なし）。
         id: 出力ファイル名に使う識別子。
         language: この台詞だけの言語コード。
         seed: この台詞だけの乱数シード。
@@ -115,6 +120,7 @@ class ScriptLine:
     voice: str
     text: str
     line_no: int
+    output_name_override: str | None = None
     id: str | None = None
     language: str | None = None
     seed: int | None = None
@@ -129,6 +135,8 @@ class ScriptLine:
         Returns:
             str: ファイル名 (ディレクトリは含まない)。
         """
+        if self.output_name_override:
+            return f"{self.output_name_override}.wav"
         suffix = self.id if self.id else self.voice
         return f"{self.index:03d}-{suffix}.wav"
 
@@ -310,6 +318,22 @@ def _parse_line_options(raw: str, line_no: int) -> dict[str, str]:
     return options
 
 
+def _parse_output_name(raw: str, line_no: int) -> str:
+    """行頭の出力名を Windows で使えるファイル名として検証する。"""
+    name = raw.strip()
+    if not name:
+        raise ScriptError(f"Line {line_no}: output name is empty")
+    if any(char in name for char in '<>:"/\\|?*'):
+        raise ScriptError(
+            f"Line {line_no}: output name contains an invalid filename character"
+        )
+    if name.endswith((".", " ")):
+        raise ScriptError(
+            f"Line {line_no}: output name must not end with a period or space"
+        )
+    return name
+
+
 def parse_script(path: str, cast: dict[str, Voice]) -> Script:
     """台本テキストを読み、キャスト定義と突き合わせて Script を返す。
 
@@ -344,6 +368,7 @@ def parse_script(path: str, cast: dict[str, Voice]) -> Script:
                 voice=head["voice"],
                 text=text,
                 line_no=head["line_no"],
+                output_name_override=head["output_name_override"],
                 id=options.get("id"),
                 language=options.get("lang"),
                 seed=int(options["seed"]) if "seed" in options else None,
@@ -374,6 +399,14 @@ def parse_script(path: str, cast: dict[str, Voice]) -> Script:
             pending.append(stripped)
             continue
 
+        output_name_override = None
+        output_match = _OUTPUT_NAME_RE.match(stripped)
+        if output_match is not None:
+            output_name_override = _parse_output_name(
+                output_match.group("output_name"), line_no
+            )
+            stripped = stripped[output_match.end() :]
+
         match = _LINE_RE.match(stripped)
         if match is None:
             raise ScriptError(
@@ -393,6 +426,7 @@ def parse_script(path: str, cast: dict[str, Voice]) -> Script:
                 "voice": voice,
                 "text": match.group("text"),
                 "line_no": line_no,
+                "output_name_override": output_name_override,
                 "options": _parse_line_options(
                     match.group("options") or "", line_no
                 ),
@@ -408,6 +442,22 @@ def parse_script(path: str, cast: dict[str, Voice]) -> Script:
     duplicates = sorted({i for i in ids if ids.count(i) > 1})
     if duplicates:
         raise ScriptError(f"Duplicated ids: {', '.join(duplicates)}")
+
+    output_names = [line.output_name() for line in lines]
+    normalized_output_names = [os.path.normcase(name) for name in output_names]
+    duplicate_output_names = sorted(
+        {
+            name
+            for name, normalized_name in zip(
+                output_names, normalized_output_names, strict=True
+            )
+            if normalized_output_names.count(normalized_name) > 1
+        }
+    )
+    if duplicate_output_names:
+        raise ScriptError(
+            f"Duplicated output names: {', '.join(duplicate_output_names)}"
+        )
 
     return Script(lines=lines, cast=cast, source=os.path.abspath(path))
 

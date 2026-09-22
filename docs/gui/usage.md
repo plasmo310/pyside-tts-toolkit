@@ -76,7 +76,7 @@ Reference Text は Qwen だけが使います（書き起こしがあるとク�
 | 項目 | 内容 |
 |---|---|
 | Cast File | キャラクターごとの声の定義 |
-| Script File | 「話者: 台詞」を並べたテキスト |
+| Script File | 「話者: 台詞」を並べたテキスト。行頭の `[出力名]` で各 wav 名を指定できる |
 | Output Dir | 書き出し先。台詞ごとの wav と manifest.json が置かれる |
 | Gap | manifest の `start_sec` を出すときの台詞間の間（秒） |
 | On Failure | チェックすると 1 台詞失敗しても残りを続ける |
