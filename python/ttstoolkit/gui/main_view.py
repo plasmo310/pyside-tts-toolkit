@@ -27,7 +27,7 @@ _LOG_MAX_LINES = 20000
 _DEFAULT_SPLITTER_SIZES = [700, 160]
 
 # Help メニューから開くドキュメント
-_DOCUMENT_URL = "https://github.com/plasmo310/python-tts-sample"
+_DOCUMENT_URL = "https://github.com/plasmo310/pyside-tts-toolkit"
 
 
 class _LogPane(QtWidgets.QPlainTextEdit):
