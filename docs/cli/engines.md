@@ -42,7 +42,7 @@ irodori      not set up  ja       ...
 ```
 
 案内されたセットアップ手順を実行します。まとめて作るなら
-`pwsh scripts\win\setup_engines.ps1`、1 つだけなら
+`pwsh scripts\win\SetupEngines.ps1`、1 つだけなら
 `-Targets irodori` を付けます。
 
 ## 定義はどこにあるか

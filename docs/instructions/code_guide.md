@@ -171,7 +171,7 @@ class QwenRunner(EngineRunner):
 4. `core/engine.py` の `ENGINE_DEFINITIONS` に定義を足す。
    `capabilities` は**実際に効くものだけ**を書く（効かないものを書くと
    黙って無視される不具合になる）
-5. `scripts/win/setup_engines.ps1` に構築手順を足す
+5. `scripts/win/SetupEngines.ps1` に構築手順を足す
 6. `docs/setup/0N_<name>.md` を書く
 
 共通層は 1 行も触りません。

@@ -27,6 +27,17 @@ function tts { & "$PWD\.venvs\common\Scripts\python.exe" -m ttstoolkit.cli @args
 
 以降の例では `tts synth ...` と書きます。
 
+関数を定義したくない場合は、`scripts\win\` にサブコマンドごとの
+`.bat` がある。引数はそのまま渡される。
+
+```powershell
+scripts\win\RunSynth.bat -e qwen -t "こんにちは。"
+scripts\win\RunBatch.bat -e qwen sample.ja.json
+scripts\win\RunScript.bat ep01.ja.txt -c cast.toml
+scripts\win\RunEngines.bat
+scripts\win\RunDoctor.bat
+```
+
 `--help` はサブコマンドごとにも出せます。
 
 ```powershell

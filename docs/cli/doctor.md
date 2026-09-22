@@ -66,7 +66,7 @@ Blackwell 世代（RTX 50 系）で、その torch が対応アーキに `sm_120
 
 ```powershell
 Remove-Item -Recurse -Force .venvs\engine-qwen
-pwsh scripts\win\setup_engines.ps1 -Targets qwen
+pwsh scripts\win\SetupEngines.ps1 -Targets qwen
 ```
 
 ### `nvidia-smi not found`

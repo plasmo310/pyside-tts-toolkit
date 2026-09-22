@@ -24,9 +24,9 @@
   構築する対象。既定は全部。例: -Targets qwen,chatterbox
 
 .EXAMPLE
-  powershell scripts/win/setup_engines.ps1
-  pwsh scripts/win/setup_engines.ps1
-  pwsh scripts/win/setup_engines.ps1 -Targets irodori
+  powershell scripts/win/SetupEngines.ps1
+  pwsh scripts/win/SetupEngines.ps1
+  pwsh scripts/win/SetupEngines.ps1 -Targets irodori
 #>
 [CmdletBinding()]
 param(

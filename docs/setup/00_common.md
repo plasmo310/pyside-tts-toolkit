@@ -87,7 +87,7 @@ UV_PROJECT_ENVIRONMENT = "{{env.TTS_REPO_ROOT}}/.venvs/engine-qwen"
 ## 3. 一括セットアップ
 
 ```powershell
-pwsh scripts\win\setup_engines.ps1
+pwsh scripts\win\SetupEngines.ps1
 ```
 
 これが行うこと:
@@ -101,7 +101,7 @@ pwsh scripts\win\setup_engines.ps1
 エンジンを選んで実行することもできる。
 
 ```powershell
-pwsh scripts\win\setup_engines.ps1 -Targets common,chatterbox
+pwsh scripts\win\SetupEngines.ps1 -Targets common,chatterbox
 ```
 
 手作業で進めたい場合や、どこかで失敗した場合は各エンジンの手順書を参照。
@@ -141,7 +141,7 @@ GPU のアーキテクチャに対応したビルドかまで確認する。
 | `input/batch/` | バッチ入力 JSON の例 |
 | `output/` | 生成した wav の置き場（git 管理外） |
 | `resources/ui/` | GUI の stylesheet とアイコン素材 |
-| `scripts/win/` | セットアップと GUI 起動のスクリプト |
+| `scripts/win/` | セットアップ・GUI 起動・CLI 各コマンドのスクリプト |
 | `tests/` | 共通層のテスト（モデル不要） |
 | `docs/` | ドキュメント一式 |
 

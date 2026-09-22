@@ -225,7 +225,7 @@ def test_missing_venv_is_reported() -> None:
     engine = SubprocessEngine(make_spec(python=MISSING_PYTHON))
     with pytest.raises(EngineNotInstalledError) as error:
         engine.start()
-    assert "setup_engines" in str(error.value)
+    assert "SetupEngines" in str(error.value)
 
 
 def test_close_is_idempotent() -> None:

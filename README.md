@@ -45,14 +45,14 @@ GPU が無くても動きますが、量産に使える速度ではありませ�
 ```powershell
 git clone <このリポジトリ>
 cd pyside-tts-toolkit
-powershell scripts\win\setup_engines.ps1
+powershell scripts\win\SetupEngines.ps1
 ```
 
 初回はダウンロードが多く、数十分かかります。  
 エンジンを絞る場合は `-Targets` を付けます（`common` / `qwen` / `chatterbox` / `irodori`）。
 
 ```powershell
-pwsh scripts\win\setup_engines.ps1 -Targets common,irodori
+pwsh scripts\win\SetupEngines.ps1 -Targets common,irodori
 ```
 
 終わったら、次のコマンドで確認します。3 エンジンとも `CUDA ok` と出れば準備完了です。
@@ -209,7 +209,7 @@ seed = 42
 - 合成は別スレッドで動くので、実行中も画面は固まりません（`Run` が無効になり、`Cancel` が有効になります）
 - `Cancel` は**次の台詞に入る前**に止まります。1 件だけの合成は最後まで走ります
 - 初回は、モデルの重みをダウンロードする確認ダイアログが出ます（数分・数 GB。1 回答えるとそのセッション中は出ません）
-- 「Engine Not Set Up」と出たら、そのエンジンの仮想環境がまだありません。`scripts\win\setup_engines.ps1` を実行してください
+- 「Engine Not Set Up」と出たら、そのエンジンの仮想環境がまだありません。`scripts\win\SetupEngines.ps1` を実行してください
 - 進捗とエラーは下のログに流れます。行頭のラベル（`[info]` / `[warn]` / `[error]`）は CLI と同じで、`File > Clear Log` で消せます
 - 成功すると出力フォルダがエクスプローラーで開きます
 - ウィンドウの位置・サイズと入力値は終了時に保存され、次回起動時に戻ります
@@ -245,7 +245,7 @@ seed = 42
 │   └─ batch/            バッチ用の JSON を置く
 ├─ output/             生成した wav（中身は .gitignore 対象）
 ├─ scripts/
-│   └─ win/setup_engines.ps1 / LaunchApp.bat
+│   └─ win/SetupEngines.ps1 / LaunchApp.bat / Run{Synth,Batch,Script,Engines,Doctor}.bat
 ├─ tests/              共通層のテスト（モデル不要）
 ├─ mise.toml           使う Python のバージョン (3.12) と uv の設定
 └─ pyproject.toml      依存と Ruff の設定
@@ -274,6 +274,17 @@ GUI と同じ処理をコマンドラインからも実行できます。
 
 ```powershell
 function tts { & "$PWD\.venvs\common\Scripts\python.exe" -m ttstoolkit.cli @args }
+```
+
+関数を定義したくない場合は、`scripts\win\` にサブコマンドごとの `.bat` があるので、
+そちらを直接呼んでも構いません（venv が無ければセットアップ手順を案内して止まります）。
+
+```powershell
+scripts\win\RunDoctor.bat
+scripts\win\RunEngines.bat
+scripts\win\RunSynth.bat -e qwen -t "こんにちは。" -l ja -O hello.wav
+scripts\win\RunBatch.bat -e qwen sample.ja.json -o output\batch
+scripts\win\RunScript.bat ep01.ja.txt -c cast.toml -o output\ep01
 ```
 
 ```powershell

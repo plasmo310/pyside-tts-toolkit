@@ -23,7 +23,7 @@ runner を呼ぶ。
     irodori    : transformers>=5.12.1, torch>=2.10
 
 仮想環境の定義は engine_env/<name>/pyproject.toml、実体は .venvs/engine-*。
-構築手順は scripts/win/setup_engines.ps1 を参照。
+構築手順は scripts/win/SetupEngines.ps1 を参照。
 """
 
 from __future__ import annotations

@@ -22,7 +22,7 @@ import subprocess
 # OS ごとに案内する手順もパスの組み立ても違うのでここで一度だけ振り分ける
 IS_WINDOWS = os.name == "nt"
 SETUP_SCRIPT = (
-    "scripts\\win\\setup_engines.ps1"
+    "scripts\\win\\SetupEngines.ps1"
     if IS_WINDOWS
     else "scripts/setup_engines.sh"
 )

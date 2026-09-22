@@ -113,7 +113,7 @@ File > Clear Saved Settings... で消して既定値に戻せます。
 ### 「Engine Not Set Up」と言われる
 
 そのエンジンの仮想環境がまだありません。案内されたセットアップ手順
-（`scripts\win\setup_engines.ps1`）を実行してください。
+（`scripts\win\SetupEngines.ps1`）を実行してください。
 [../cli/doctor.md](../cli/doctor.md) でも状態を確認できます。
 
 ### Cancel を押してもすぐ止まらない
@@ -124,5 +124,5 @@ File > Clear Saved Settings... で消して既定値に戻せます。
 ### 起動しない
 
 `.venvs\common` が無い可能性があります。
-`pwsh scripts\win\setup_engines.ps1 -Targets common` で作ってください。
+`pwsh scripts\win\SetupEngines.ps1 -Targets common` で作ってください。
 GUI は `PySide6` を使うので、共通層の仮想環境が要ります。

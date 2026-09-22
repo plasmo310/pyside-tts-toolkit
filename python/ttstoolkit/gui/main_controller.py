@@ -27,7 +27,7 @@ _TAB_KEY_SCRIPT = "script"
 _SETUP_DIALOG_TITLE = "Engine Not Set Up"
 _SETUP_DIALOG_MESSAGE = (
     'The virtual environment for "{engine}" has not been created yet.\n'
-    "Run scripts\\win\\setup_engines.ps1 first (see {doc})."
+    "Run scripts\\win\\SetupEngines.ps1 first (see {doc})."
 )
 
 # モデルの初回ダウンロードを知らせるダイアログ

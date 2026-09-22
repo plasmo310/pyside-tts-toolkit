@@ -172,7 +172,7 @@ torch の上書きが効いていない。`ttstoolkit.cli doctor` で torch の�
 
 ```powershell
 Remove-Item -Recurse -Force .venvs\engine-chatterbox
-pwsh scripts\win\setup_engines.ps1 -Targets chatterbox
+pwsh scripts\win\SetupEngines.ps1 -Targets chatterbox
 ```
 
 ### `torch.backends.cuda.sdp_kernel() is deprecated` という警告

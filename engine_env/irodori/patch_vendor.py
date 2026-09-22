@@ -133,7 +133,7 @@ def main() -> int:
     if not os.path.isfile(os.path.join(vendor_dir, "pyproject.toml")):
         print(f"Clone not found: {vendor_dir}", file=sys.stderr)
         print(
-            "Run scripts\\win\\setup_engines.ps1 first "
+            "Run scripts\\win\\SetupEngines.ps1 first "
             "(see docs/setup/03_irodori-tts.md).",
             file=sys.stderr,
         )

@@ -1,10 +1,11 @@
 @echo off
-REM TTS Toolkit (GUI) launcher.
+REM TTS Toolkit (CLI) doctor: check that the environment is ready.
+REM Usage: scripts\win\RunDoctor.bat
 
 set SCRIPT_DIR=%~dp0
 set ROOT_DIR=%SCRIPT_DIR%..\..
 
-set PYTHON_EXE=%ROOT_DIR%\.venvs\common\Scripts\pythonw.exe
+set PYTHON_EXE=%ROOT_DIR%\.venvs\common\Scripts\python.exe
 if not exist "%PYTHON_EXE%" (
     echo Not found python env. Please execute 'scripts\win\SetupEngines.ps1'.
     pause
@@ -13,4 +14,5 @@ if not exist "%PYTHON_EXE%" (
 
 set PYTHONDONTWRITEBYTECODE=1
 
-start "" /b "%PYTHON_EXE%" -m ttstoolkit.main
+"%PYTHON_EXE%" -m ttstoolkit.cli doctor %*
+exit /b %ERRORLEVEL%
