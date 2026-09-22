@@ -24,7 +24,7 @@
     霊夢: 長い台詞は
       インデントした行で続けられる。
 
-角括弧で指定できるのは `id` / `speed` / `seed` / `lang`。継続行は
+角括弧で指定できるのは `id` / `speed` / `seed` / `lang` / `volume`。継続行は
 **区切り文字なしで連結される**ので、英語の台詞は 1 行に収めるか行末に
 空白を置くこと (日本語で余計な空白が入らないようにこうしている)。
 """
@@ -49,7 +49,7 @@ _LINE_RE = re.compile(
 )
 
 # 台詞の行に書けるオプション
-_LINE_OPTION_KEYS = ("id", "speed", "seed", "lang")
+_LINE_OPTION_KEYS = ("id", "speed", "seed", "lang", "volume")
 
 # cast.toml の 1 キャラクターに書けるキー
 _CAST_KEYS = (
@@ -60,6 +60,7 @@ _CAST_KEYS = (
     "language",
     "seed",
     "speed",
+    "volume",
 )
 
 
@@ -80,6 +81,7 @@ class Voice:
         language: 言語コード。
         seed: 乱数シード。
         speed: 話速。
+        volume: 音量。
     """
 
     name: str
@@ -90,6 +92,7 @@ class Voice:
     language: str | None = None
     seed: int | None = None
     speed: float = 1.0
+    volume: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -105,6 +108,7 @@ class ScriptLine:
         language: この台詞だけの言語コード。
         seed: この台詞だけの乱数シード。
         speed: この台詞だけの話速。
+        volume: この台詞だけの音量。
     """
 
     index: int
@@ -115,6 +119,7 @@ class ScriptLine:
     language: str | None = None
     seed: int | None = None
     speed: float | None = None
+    volume: float | None = None
 
     def output_name(self) -> str:
         """出力 wav のファイル名を返す。
@@ -181,6 +186,7 @@ class Script:
             voice_design=voice.voice_design,
             seed=line.seed if line.seed is not None else voice.seed,
             speed=line.speed if line.speed is not None else voice.speed,
+            volume=(line.volume if line.volume is not None else voice.volume),
         )
 
 
@@ -267,6 +273,7 @@ def _build_voice(path: str, name: str, entry: object, base_dir: str) -> Voice:
         language=entry.get("language"),
         seed=entry.get("seed"),
         speed=float(entry.get("speed", 1.0)),
+        volume=float(entry.get("volume", 1.0)),
     )
 
 
@@ -342,6 +349,9 @@ def parse_script(path: str, cast: dict[str, Voice]) -> Script:
                 seed=int(options["seed"]) if "seed" in options else None,
                 speed=(
                     float(options["speed"]) if "speed" in options else None
+                ),
+                volume=(
+                    float(options["volume"]) if "volume" in options else None
                 ),
             )
         )

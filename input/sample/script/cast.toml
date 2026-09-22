@@ -13,6 +13,7 @@
 #   language         既定の言語
 #   seed             既定の乱数シード。固定すると声がぶれにくい
 #   speed            既定の話速（irodori のみ）
+#   volume           既定の音量。1.0 が等倍。エンジンを問わず効く
 
 [voices."霊夢"]
 engine = "irodori"

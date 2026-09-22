@@ -77,7 +77,13 @@ class FakeRunner(EngineRunner):
         log(f"text={request.text!r} language={request.language!r}")
         seconds = max(_MIN_SECONDS, len(request.text) * _SECONDS_PER_CHAR)
         frames = int(SAMPLE_RATE * seconds)
-        write_wav_pcm16(request.output_path, [0.0] * frames, SAMPLE_RATE)
+        # 振幅を一定値にしておくと、volume の効果を波形から検証できる
+        write_wav_pcm16(
+            request.output_path,
+            [1.0] * frames,
+            SAMPLE_RATE,
+            volume=request.volume,
+        )
         return SynthesisResponse(
             sample_rate=SAMPLE_RATE,
             duration_sec=frames / SAMPLE_RATE,

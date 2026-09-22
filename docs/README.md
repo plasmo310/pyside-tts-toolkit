@@ -8,7 +8,6 @@
 | [guide/](guide/) | 作り込みの解説（台本・オリジナルボイス） |
 | [development/](development/) | 全体構成と設計の根拠 |
 | [instructions/](instructions/) | コードを書くときの決まりごと |
-| [html/](html/) | ブラウザで読むページ（早見表・概要） |
 | [references/](references/) | TTS の調査結果 |
 | [plan/](plan/) | 当初の要件 |
 

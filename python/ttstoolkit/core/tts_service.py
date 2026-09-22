@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 
 from ttstoolkit.core._internal.engine_process import create_engine
 from ttstoolkit.core._internal.script import Script, ScriptLine, load_script
+from ttstoolkit.core._internal.script_player import write_script_player
 from ttstoolkit.core.engine import SynthesisResult
 from ttstoolkit.core.settings import TTSToolkitError, get_logger
 from ttstoolkit.engine._shared.protocol import SynthesisRequest
@@ -140,6 +141,7 @@ class JobOutcome:
     Attributes:
         written_paths: 書き出した wav のパス。
         manifest_path: 書き出した manifest のパス。
+        player_path: 書き出した再生用 HTML のパス。台本のときだけ入る。
         failures: 失敗した件の記録。
         total_count: 処理しようとした件数。
         is_canceled: 途中で止めたか。
@@ -147,6 +149,7 @@ class JobOutcome:
 
     written_paths: list[str] = field(default_factory=list)
     manifest_path: str | None = None
+    player_path: str | None = None
     failures: list[dict] = field(default_factory=list)
     total_count: int = 0
     is_canceled: bool = False
@@ -195,6 +198,19 @@ def _write_manifest(output_dir: str, manifest: dict) -> str:
         file.write("\n")
     _logger.info("wrote %s", path)
     return path
+
+
+def _player_title(output_dir: str) -> str:
+    """再生用 HTML のタイトルを書き出し先ディレクトリ名から作る。
+
+    Args:
+        output_dir: 書き出し先ディレクトリ。
+
+    Returns:
+        str: ページタイトルに使う文字列。
+    """
+    name = os.path.basename(os.path.normpath(output_dir))
+    return name.replace("_", " ")
 
 
 def _preview(text: str) -> str:
@@ -472,11 +488,12 @@ class TTSService:
             if self.__run_script_engine(run, engine_name, lines):
                 break
 
-        run.outcome.manifest_path = _write_manifest(
-            output_dir,
-            _build_script_manifest(
-                script, run.results, run.outcome.failures, gap_sec, started
-            ),
+        manifest = _build_script_manifest(
+            script, run.results, run.outcome.failures, gap_sec, started
+        )
+        run.outcome.manifest_path = _write_manifest(output_dir, manifest)
+        run.outcome.player_path = write_script_player(
+            output_dir, _player_title(output_dir), manifest
         )
         return run.outcome
 

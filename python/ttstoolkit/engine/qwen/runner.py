@@ -129,7 +129,12 @@ class QwenRunner(EngineRunner):
         if not waves:
             raise RuntimeError("Qwen3-TTS returned no audio")
 
-        frames = write_wav_pcm16(request.output_path, waves[0], sample_rate)
+        frames = write_wav_pcm16(
+            request.output_path,
+            waves[0],
+            sample_rate,
+            volume=request.volume,
+        )
         return SynthesisResponse(
             sample_rate=int(sample_rate),
             duration_sec=frames / int(sample_rate),

@@ -23,6 +23,7 @@ seed = 42
 [voices."魔理沙"]
 engine = "irodori"
 speed = 1.1
+volume = 0.8
 
 [voices."ナレーター"]
 engine = "qwen"
@@ -68,7 +69,9 @@ def test_cast_reads_japanese_names(tmp_path) -> None:
     assert set(cast) == {"霊夢", "魔理沙", "ナレーター"}
     assert cast["霊夢"].engine == "irodori"
     assert cast["霊夢"].seed == 42
+    assert cast["霊夢"].volume == 1.0
     assert cast["魔理沙"].speed == 1.1
+    assert cast["魔理沙"].volume == 0.8
 
 
 def test_cast_resolves_reference_audio_relative_to_itself(tmp_path) -> None:
@@ -151,18 +154,22 @@ def test_line_options_override_cast(tmp_path) -> None:
     """行の角括弧の指定がキャストの既定より優先されること。"""
     cast = parse_cast(cast_file(tmp_path))
     path = write(
-        tmp_path, "ep.txt", "霊夢[speed=0.9, seed=7, id=key]: 台詞。\n"
+        tmp_path,
+        "ep.txt",
+        "霊夢[speed=0.9, seed=7, id=key, volume=0.6]: 台詞。\n",
     )
     script = parse_script(path, cast)
     line = script.lines[0]
     assert line.speed == 0.9
     assert line.seed == 7
     assert line.id == "key"
+    assert line.volume == 0.6
 
     request = script.to_request(line, str(tmp_path / "out.wav"))
     assert request.speed == 0.9
     # 行の指定がキャストの 42 に勝つ
     assert request.seed == 7
+    assert request.volume == 0.6
     # 行で指定していないものはキャストから引き継ぐ
     assert request.voice_design == "落ち着いた少女の声。"
     assert request.language == "ja"
@@ -176,7 +183,9 @@ def test_cast_defaults_apply_when_line_has_no_options(tmp_path) -> None:
     first = script.to_request(script.lines[0], str(tmp_path / "a.wav"))
     second = script.to_request(script.lines[1], str(tmp_path / "b.wav"))
     assert first.seed == 42
+    assert first.volume == 1.0
     assert second.speed == 1.1
+    assert second.volume == 0.8
 
 
 def test_output_name_uses_index_and_id(tmp_path) -> None:

@@ -138,7 +138,10 @@ class IrodoriRunner(EngineRunner):
 
         sample_rate = int(result.sample_rate)
         frames = write_wav_pcm16(
-            request.output_path, result.audio, sample_rate
+            request.output_path,
+            result.audio,
+            sample_rate,
+            volume=request.volume,
         )
         return SynthesisResponse(
             sample_rate=sample_rate,

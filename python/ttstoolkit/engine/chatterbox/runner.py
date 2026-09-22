@@ -98,7 +98,12 @@ class ChatterboxRunner(EngineRunner):
         elapsed = time.monotonic() - started
 
         sample_rate = int(self.__model.sr)
-        frames = write_wav_pcm16(request.output_path, wave_data, sample_rate)
+        frames = write_wav_pcm16(
+            request.output_path,
+            wave_data,
+            sample_rate,
+            volume=request.volume,
+        )
         return SynthesisResponse(
             sample_rate=sample_rate,
             duration_sec=frames / sample_rate,

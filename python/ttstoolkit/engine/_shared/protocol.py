@@ -59,6 +59,8 @@ class SynthesisRequest:
         voice_design: 文章による声の指定。
         seed: 乱数シード。
         speed: 話速。1.0 が等倍。
+        volume: 音量。1.0 が等倍。書き出し直前に振幅へ掛ける
+            だけなので、エンジンを問わず常に対応している。
     """
 
     text: str
@@ -69,6 +71,7 @@ class SynthesisRequest:
     voice_design: str | None = None
     seed: int | None = None
     speed: float = 1.0
+    volume: float = 1.0
 
     def __post_init__(self) -> None:
         """入力を検査し、パスを絶対パスに直す。
@@ -79,12 +82,15 @@ class SynthesisRequest:
         動かしている)。
 
         Raises:
-            ValueError: テキストが空、または speed が 0 以下のとき。
+            ValueError: テキストが空、speed が 0 以下、または volume が
+                負のとき。
         """
         if not self.text.strip():
             raise ValueError("Text is empty")
         if self.speed <= 0:
             raise ValueError(f"Speed must be positive: {self.speed}")
+        if self.volume < 0:
+            raise ValueError(f"Volume must not be negative: {self.volume}")
 
         object.__setattr__(
             self, "output_path", os.path.abspath(self.output_path)
@@ -107,6 +113,7 @@ class SynthesisRequest:
             "voice_design": self.voice_design,
             "seed": self.seed,
             "speed": self.speed,
+            "volume": self.volume,
         }
 
     @classmethod
@@ -135,6 +142,11 @@ class SynthesisRequest:
             voice_design=data.get("voice_design"),
             seed=data.get("seed"),
             speed=float(data.get("speed") or 1.0),
+            volume=(
+                float(data["volume"])
+                if data.get("volume") is not None
+                else 1.0
+            ),
         )
 
 

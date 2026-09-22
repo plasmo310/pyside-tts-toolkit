@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import array
 import os
 import subprocess
 import sys
@@ -241,6 +242,55 @@ def test_empty_text_rejected(tmp_path) -> None:
         SynthesisRequest(text="   ", output_path=str(tmp_path / "j.wav"))
 
 
+def test_negative_volume_rejected(tmp_path) -> None:
+    """負の音量はリクエストを作った時点で弾かれること。"""
+    with pytest.raises(ValueError):
+        SynthesisRequest(
+            text="テスト", output_path=str(tmp_path / "j2.wav"), volume=-0.1
+        )
+
+
+def read_peak_amplitude(path: str) -> int:
+    """wav の PCM16 サンプルの最大絶対値を返す。
+
+    Args:
+        path: wav のパス。
+
+    Returns:
+        int: 最大絶対値 (0-32767)。
+    """
+    with wave.open(path, "rb") as wav_file:
+        raw = wav_file.readframes(wav_file.getnframes())
+    samples = array.array("h")
+    samples.frombytes(raw)
+    return max(abs(s) for s in samples)
+
+
+def test_volume_scales_output_amplitude(tmp_path) -> None:
+    """volume が書き出す振幅に反映されること。
+
+    音量調整はエンジンを問わず `write_wav_pcm16` で一括して行うので、
+    ダミー runner (常に振幅 1.0 を返す) でも効果を確認できる。
+    """
+    with SubprocessEngine(make_spec()) as engine:
+        full = engine.synthesize(
+            SynthesisRequest(
+                text="テスト", output_path=str(tmp_path / "full.wav")
+            )
+        )
+        half = engine.synthesize(
+            SynthesisRequest(
+                text="テスト",
+                output_path=str(tmp_path / "half.wav"),
+                volume=0.5,
+            )
+        )
+    full_peak = read_peak_amplitude(full.output_path)
+    half_peak = read_peak_amplitude(half.output_path)
+    assert full_peak == 32767
+    assert half_peak == pytest.approx(full_peak * 0.5, abs=1)
+
+
 def test_missing_reference_audio_is_reported(tmp_path) -> None:
     """参照音声が無い場合は FileNotFoundError になること。
 
@@ -274,6 +324,7 @@ def test_request_survives_a_json_round_trip(tmp_path) -> None:
         voice_design="落ち着いた低い声",
         seed=42,
         speed=1.25,
+        volume=0.75,
     )
     assert SynthesisRequest.from_json(original.to_json()) == original
 

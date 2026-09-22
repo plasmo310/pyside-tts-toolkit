@@ -19,9 +19,11 @@ engine_env/irodori/vendor/
 output/*
 !output/.gitkeep
 
-# 声素材（サイズが大きく再現不能なため追跡しない）
-input/voices/*
-!input/voices/.gitkeep
+# 入力素材
+input/*
+!input/.gitkeep
+!input/sample
+!input/*/sample/*
 
 # モデルキャッシュ
 .cache/

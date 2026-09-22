@@ -127,7 +127,9 @@ def parse_options() -> dict:
     return json.loads(parser.parse_args().options)
 
 
-def write_wav_pcm16(path: str, samples: object, sample_rate: int) -> int:
+def write_wav_pcm16(
+    path: str, samples: object, sample_rate: int, volume: float = 1.0
+) -> int:
     """モノラル 16bit PCM の WAV を書き、フレーム数を返す。
 
     エンジンごとに float32 WAV だったり 24/48kHz だったりすると、
@@ -135,11 +137,15 @@ def write_wav_pcm16(path: str, samples: object, sample_rate: int) -> int:
     出力形式は PCM16 に統一し、サンプリングレートだけモデル本来の
     値を保つ。
 
+    音量調整もここでまとめて行う。モデルが返す振幅に掛けるだけなので
+    エンジンを問わず効き、対応状況を宣言する必要が無い。
+
     Args:
         path: 書き出す wav のパス。
         samples: 1 次元の float 配列 (torch.Tensor / numpy 配列 /
             リストのいずれか)。値域 [-1, 1] を想定する。
         sample_rate: サンプリングレート (Hz)。
+        volume: 書き出し前に振幅へ掛ける倍率。1.0 が等倍。
 
     Returns:
         int: 書き出したフレーム数。
@@ -164,7 +170,10 @@ def write_wav_pcm16(path: str, samples: object, sample_rate: int) -> int:
         pcm,
         0,
         *(
-            max(_PCM16_MIN, min(_PCM16_MAX, round(float(v) * _PCM16_MAX)))
+            max(
+                _PCM16_MIN,
+                min(_PCM16_MAX, round(float(v) * volume * _PCM16_MAX)),
+            )
             for v in values
         ),
     )
