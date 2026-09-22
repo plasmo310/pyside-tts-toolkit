@@ -45,4 +45,5 @@
 | ファイル | 内容 |
 |---|---|
 | [development/architecture.md](development/architecture.md) | なぜこの構成なのか。制約・設計判断・プロトコル |
+| [development/build.md](development/build.md) | PyInstaller で GUI を exe にする |
 | [instructions/code_guide.md](instructions/code_guide.md) | 書き方の決まりと、よくある変更の手順 |

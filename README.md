@@ -76,6 +76,8 @@ scripts\win\LaunchApp.bat
 
 画面は上下 2 段で、上が入力タブ、下がログです。境目はドラッグで動かせます。
 
+GUI だけを exe に固めて配布することもできます（下記「6. ビルドする」を参照）。
+
 | タブ         | すること                                 |
 | ------------ | ---------------------------------------- |
 | Synthesis    | テキストを 1 件合成する                  |
@@ -325,7 +327,44 @@ GUI が画面に出していないもの（`batch`、`-f`（テキストをフ�
 
 ---
 
-## 6. ドキュメント
+## 6. ビルドする（配布用 exe）
+
+GUI だけを PyInstaller で 1 つの exe に固めて配布できます（**CLI は含まれません**）。
+各エンジン (`.venvs/engine-*`) は依存が排他的でプロセス分離が前提のため、固めるのは
+共通層 (GUI) だけで、モデルの重い依存は同梱しません。
+
+```powershell
+REM 1. ビルド環境を作る（初回のみ）
+build_env\scripts\win\Setup.bat
+
+REM 2. ビルドする
+build_env\scripts\win\BuildApp.bat
+```
+
+`build_env\scripts\win\dist\TTSToolkit\` に `TTSToolkit.exe` 一式が出力されます。
+配布するときは、このフォルダの中（`TTSToolkit.exe` と同じ階層）に `input/` /
+`output/` / `.venvs/` / `engine_env/` を用意してください
+（`docs/setup/` の手順、または既存環境からのコピー）。
+
+```
+TTSToolkit/
+├─ TTSToolkit.exe
+├─ _internal/          ← ビルドで自動生成
+├─ input/
+├─ output/
+├─ .venvs/
+│   ├─ engine-qwen/
+│   ├─ engine-chatterbox/
+│   └─ engine-irodori/
+└─ engine_env/
+```
+
+仕組みの詳細（`--add-data` で何を同梱しているか、パス解決の仕組みなど）は
+[docs/development/build.md](docs/development/build.md) を参照してください。
+
+---
+
+## 7. ドキュメント
 
 詳しい仕様・オプション・実装の話は [docs/](docs/README.md) にあります。
 
@@ -337,11 +376,12 @@ GUI が画面に出していないもの（`batch`、`-f`（テキストをフ�
 | [docs/guide/script.md](docs/guide/script.md)                         | キャラクター台本の書き方         |
 | [docs/guide/original-voice.md](docs/guide/original-voice.md)         | オリジナルの声を設計して固定する |
 | [docs/development/architecture.md](docs/development/architecture.md) | 全体構成と設計の根拠             |
+| [docs/development/build.md](docs/development/build.md)               | PyInstaller で GUI を exe にする |
 | [docs/instructions/code_guide.md](docs/instructions/code_guide.md)   | コーディングルール               |
 
 ---
 
-## 7. ライセンス
+## 8. ライセンス
 
 3 モデルともローカル生成は無料・無制限で、商用利用も可能です。
 

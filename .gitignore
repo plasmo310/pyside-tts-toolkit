@@ -12,6 +12,12 @@ __pycache__/
 .venvs/
 .venv/
 
+# PyInstaller のビルド環境と成果物
+build_env/.venv/
+build_env/*.spec
+build_env/scripts/*/build/
+build_env/scripts/*/dist/
+
 # ベンダーリポジトリ（セットアップ手順で clone し直せる）
 engine_env/irodori/vendor/
 

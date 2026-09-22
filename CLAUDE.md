@@ -30,6 +30,7 @@ python/ttstoolkit/  GUI・CLI・処理本体をまとめたパッケージ
     _shared/        両側が守る契約（protocol）と runner の土台
 engine_env/         各エンジンの仮想環境を作るための定義
 .venvs/             仮想環境の実体（common と engine-*）
+build_env/          PyInstaller で GUI を exe にするための別環境
 resources/          stylesheet.qss（色とサイズは全部ここ）
 input/ output/      入出力
 references/         設計の参考（pyside-whisper-toolkit）。編集しない

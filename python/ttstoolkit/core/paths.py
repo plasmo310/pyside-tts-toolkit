@@ -16,11 +16,20 @@
 「このファイルの位置から辿ったリポジトリルート」を基準にする。
 そうしないと実行時のカレントディレクトリに `output/` が作られてしまう。
 
+PyInstaller で固めた場合 (`sys.frozen`) は事情が違う。`ttstoolkit` の
+コードは exe の中に固められて生の `.py` では無くなるが、各エンジンは
+別の仮想環境からサブプロセスで `ttstoolkit.engine.*` を import するため
+生の `.py` が要る。そのため `python/` は `--add-data` でリソースとして
+同梱し、`PYTHON_DIR` はその同梱先 (`sys._MEIPASS/python`) を指す。
+`ROOT_DIR` は exe のあるフォルダとし、その隣に `input/` / `output/` /
+`.venvs/` / `engine_env/` を置く運用にする。詳細は
+`docs/development/build.md` を参照。
+
 Attributes:
     CORE_DIR (str): core パッケージ (`python/ttstoolkit/core/`)。
     PACKAGE_DIR (str): パッケージ (`python/ttstoolkit/`) の絶対パス。
     PYTHON_DIR (str): 検索パスに入れる `python/` の絶対パス。
-    ROOT_DIR (str): リポジトリルートの絶対パス。
+    ROOT_DIR (str): リポジトリルート (固めた場合は exe のあるフォルダ)。
     INPUT_DIR (str): 入力ルート (`input/`) の絶対パス。
     VOICES_DIR (str): 参照音声の既定の置き場 (`input/voices/`)。
     SCRIPT_DIR (str): 台本の既定の置き場 (`input/script/`)。
@@ -33,13 +42,19 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sys
 
 from ttstoolkit.core.settings import IS_WINDOWS, TTSToolkitError
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 PACKAGE_DIR = os.path.dirname(CORE_DIR)
-PYTHON_DIR = os.path.dirname(PACKAGE_DIR)
-ROOT_DIR = os.path.dirname(PYTHON_DIR)
+
+if getattr(sys, "frozen", False):
+    ROOT_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    PYTHON_DIR = os.path.join(sys._MEIPASS, "python")
+else:
+    PYTHON_DIR = os.path.dirname(PACKAGE_DIR)
+    ROOT_DIR = os.path.dirname(PYTHON_DIR)
 
 INPUT_DIR = os.path.join(ROOT_DIR, "input")
 VOICES_DIR = os.path.join(INPUT_DIR, "voices")
