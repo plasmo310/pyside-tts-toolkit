@@ -44,8 +44,8 @@ GPU が無くても動きますが、量産に使える速度ではありませ�
 
 ```powershell
 git clone <このリポジトリ>
-cd python-tts-sample
-pwsh scripts\win\setup_engines.ps1
+cd pyside-tts-toolkit
+powershell scripts\win\setup_engines.ps1
 ```
 
 初回はダウンロードが多く、数十分かかります。  
@@ -223,7 +223,7 @@ seed = 42
 ## 4. フォルダ構成
 
 ```
-python-tts-sample/
+.
 ├─ python/
 │   └─ ttstoolkit/       GUI・CLI・処理をまとめたパッケージ
 │       ├─ main.py           ← GUI の起点。-m ttstoolkit.main で起動する

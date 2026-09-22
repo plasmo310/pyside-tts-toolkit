@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   TTS Toolkit の仮想環境をまとめて構築する。
 
@@ -24,6 +24,7 @@
   構築する対象。既定は全部。例: -Targets qwen,chatterbox
 
 .EXAMPLE
+  powershell scripts/win/setup_engines.ps1
   pwsh scripts/win/setup_engines.ps1
   pwsh scripts/win/setup_engines.ps1 -Targets irodori
 #>
@@ -123,3 +124,4 @@ Write-Host "  .\.venvs\common\Scripts\python.exe -m ttstoolkit.cli doctor"
 Write-Host "  .\scripts\win\LaunchApp.bat"
 Write-Host ""
 Write-Host "初回の合成はモデル重みのダウンロードを伴うため時間がかかります。" -ForegroundColor Yellow
+
