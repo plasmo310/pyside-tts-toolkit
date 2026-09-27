@@ -15,9 +15,9 @@ build_env/
 Chatterbox / Irodori-TTS) は
 [architecture.md](architecture.md) の通り重い依存が互いに排他的で、
 プロセス分離が前提になっている。そのため固めた exe も
-`.venvs/engine-*` を外部プロセスとして呼ぶだけで、モデルの依存は
-一切同梱しない。`docs/setup/` の手順で作った `.venvs/engine-*` /
-`engine_env/` はビルド後もそのまま使う。
+`.venvs/engine-*` を外部プロセスとして呼ぶ。`BuildApp.bat` は構築済みの
+エンジン仮想環境を成果物へコピーする。Irodori の仮想環境と上流 clone は必須で、
+未構築ならビルドを失敗させる。
 
 ## 1. ビルド環境を作る
 
@@ -37,6 +37,13 @@ build_env\scripts\win\BuildApp.bat
 ```
 
 `build_env/scripts/win/dist/TTSToolkit/` に出力される。
+Irodori を使うには、先にリポジトリ直下でその環境を構築しておく。
+
+```powershell
+powershell scripts\win\SetupEngines.ps1 -Targets irodori
+```
+
+モデル重みは初回実行時に Hugging Face から取得される。
 
 ## 何をしているか
 
@@ -75,8 +82,9 @@ main()
 ## 配置
 
 固めた `TTSToolkit/` フォルダの中（`TTSToolkit.exe` や `_internal/`
-と同じ階層）に、`input/` / `output/` / `.venvs/` / `engine_env/` を
-置いて使う。`core/paths.py` は `sys.frozen` のとき `ROOT_DIR` を
+と同じ階層）に、必要に応じて `input/` / `output/` を置いて使う。
+エンジン用の `.venvs/` / `engine_env/` はビルド時に配置される。
+`core/paths.py` は `sys.frozen` のとき `ROOT_DIR` を
 exe のあるフォルダ（`os.path.dirname(sys.executable)`）として扱う
 ため。
 
@@ -93,11 +101,10 @@ TTSToolkit/
 └─ engine_env/
 ```
 
-`.venvs/engine-*` と `engine_env/` は `docs/setup/` の手順（または
-リポジトリの `scripts/win/SetupEngines.ps1`）でこのフォルダの中に
-作る。実機で確認済み（`build_env\scripts\win\dist\TTSToolkit\` に
-これらをコピーして起動し、3 エンジンとも `installed` と判定される
-ことを確認した）。
+Irodori の `.venvs/engine-irodori` と `engine_env/irodori/vendor/Irodori-TTS`
+は `BuildApp.bat` が自動でコピーする。利用者が別途配置したり、配布先で
+`SetupEngines.ps1` を実行したりする必要はない。これらが無い状態では、実行不能な
+成果物を作らないようビルドが失敗する。
 
 CLI 相当の操作をしたい場合は `.venvs/common` を別途セットアップして
 そちらから `python -m ttstoolkit.cli` を使う（固めた exe は GUI 専用）。
@@ -105,5 +112,4 @@ CLI 相当の操作をしたい場合は `.venvs/common` を別途セットア�
 ## 注意
 
 - `build_env/.venv` と `dist` / `build` は `.gitignore` 対象。
-- エンジンの仮想環境は固めても軽くならない。`docs/setup/` の手順で
-  別途構築する必要がある。
+- エンジンの仮想環境を含むため、配布物のサイズは大きくなる。
