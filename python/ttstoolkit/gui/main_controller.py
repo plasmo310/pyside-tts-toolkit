@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 
+from ttstoolkit.core.settings import TTSToolkitError
 from ttstoolkit.core.tts_service import JobOutcome
 from ttstoolkit.gui.main_model import MainModel
 from ttstoolkit.gui.main_view import MainView
@@ -26,8 +27,9 @@ _TAB_KEY_SCRIPT = "script"
 # エンジンが未構築のときに出すダイアログ
 _SETUP_DIALOG_TITLE = "Engine Not Set Up"
 _SETUP_DIALOG_MESSAGE = (
-    'The virtual environment for "{engine}" has not been created yet.\n'
-    "Run scripts\\win\\SetupEngines.ps1 first (see {doc})."
+    'The "{engine}" engine is not installed.\n\n'
+    "Install it now? This downloads the engine packages and can take several "
+    "minutes."
 )
 
 # モデルの初回ダウンロードを知らせるダイアログ
@@ -116,7 +118,10 @@ class MainController:
         Args:
             request: 画面で指定された実行内容。
         """
-        if not self.__confirm_engine(request.engine):
+        if not self.__install_if_needed(
+            request.engine,
+            lambda on_progress, is_canceled: self.__model.run_synthesis(request),
+        ):
             return
         self.__start_task(
             lambda on_progress, is_canceled: self.__model.run_synthesis(
@@ -132,7 +137,12 @@ class MainController:
         Args:
             request: 画面で指定された実行内容。
         """
-        if not self.__confirm_engine(request.engine):
+        if not self.__install_if_needed(
+            request.engine,
+            lambda on_progress, is_canceled: self.__model.run_voice_design(
+                request
+            ),
+        ):
             return
         self.__start_task(
             lambda on_progress, is_canceled: self.__model.run_voice_design(
@@ -149,6 +159,29 @@ class MainController:
         Args:
             request: 画面で指定された実行内容。
         """
+        try:
+            engines = self.__model.script_engine_names(request)
+        except TTSToolkitError as error:
+            self.__on_task_error(str(error))
+            return
+        missing = [
+            engine
+            for engine in engines
+            if not self.__model.is_engine_installed(engine)
+        ]
+        if missing:
+            names = ", ".join(missing)
+            if not self.__view.show_confirm_dialog(
+                _SETUP_DIALOG_TITLE,
+                _SETUP_DIALOG_MESSAGE.format(engine=names),
+            ):
+                return
+            self.__start_task(
+                lambda on_progress, is_canceled: self.__install_engines_and_run_script(
+                    missing, request, on_progress, is_canceled
+                )
+            )
+            return
         if not self.__confirm_first_run():
             return
         self.__start_task(
@@ -157,7 +190,7 @@ class MainController:
             )
         )
 
-    def __confirm_engine(self, engine: str) -> bool:
+    def __install_if_needed(self, engine: str, task: TaskFunc) -> bool:
         """エンジンが使える状態かを確かめる。
 
         Args:
@@ -167,14 +200,33 @@ class MainController:
             bool: 実行してよければ True。
         """
         if not self.__model.is_engine_installed(engine):
-            self.__view.show_error_dialog(
-                _SETUP_DIALOG_MESSAGE.format(
-                    engine=engine,
-                    doc=self.__model.engine_setup_doc(engine),
+            if not self.__view.show_confirm_dialog(
+                _SETUP_DIALOG_TITLE,
+                _SETUP_DIALOG_MESSAGE.format(engine=engine),
+            ):
+                return False
+            self.__start_task(
+                lambda on_progress, is_canceled: self.__install_and_run(
+                    engine, task, on_progress
                 )
             )
             return False
         return self.__confirm_first_run()
+
+    def __install_and_run(
+        self, engine: str, task: TaskFunc, on_progress
+    ) -> JobOutcome:
+        """Install an engine in the worker thread, then run the requested job."""
+        self.__model.install_engine(engine, on_progress)
+        return task(on_progress, lambda: False)
+
+    def __install_engines_and_run_script(
+        self, engines: list[str], request: ScriptTabRequest, on_progress, is_canceled
+    ) -> JobOutcome:
+        """Install every engine referenced by a script before running it."""
+        for engine in engines:
+            self.__model.install_engine(engine, on_progress)
+        return self.__model.run_script(request, on_progress, is_canceled)
 
     def __confirm_first_run(self) -> bool:
         """初回だけ、重みのダウンロードに時間がかかる旨を確認する。

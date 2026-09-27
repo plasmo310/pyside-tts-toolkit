@@ -16,8 +16,9 @@ Chatterbox / Irodori-TTS) は
 [architecture.md](architecture.md) の通り重い依存が互いに排他的で、
 プロセス分離が前提になっている。そのため固めた exe も
 `.venvs/engine-*` を外部プロセスとして呼ぶ。`BuildApp.bat` は構築済みの
-エンジン仮想環境を成果物へコピーする。Irodori の仮想環境と上流 clone は必須で、
-未構築ならビルドを失敗させる。
+エンジン仮想環境を成果物へコピーする。Qwen / Chatterbox / Irodori の全環境と
+Irodori の上流 clone が必須で、未構築ならビルドを失敗させる。さらに `uv.exe` と
+各エンジンの lockfile を同梱するため、配布後に環境が欠けた場合も GUI から再インストールできる。
 
 ## 1. ビルド環境を作る
 
@@ -37,13 +38,14 @@ build_env\scripts\win\BuildApp.bat
 ```
 
 `build_env/scripts/win/dist/TTSToolkit/` に出力される。
-Irodori を使うには、先にリポジトリ直下でその環境を構築しておく。
+ビルド前に、全エンジン環境をリポジトリ直下で構築しておく。
 
 ```powershell
-powershell scripts\win\SetupEngines.ps1 -Targets irodori
+powershell scripts\win\SetupEngines.ps1
 ```
 
-モデル重みは初回実行時に Hugging Face から取得される。
+モデル重みは初回実行時に Hugging Face から取得される。GUI からの再インストールには
+ネットワーク接続が必要で、エンジンの Python パッケージを再取得する。
 
 ## 何をしているか
 

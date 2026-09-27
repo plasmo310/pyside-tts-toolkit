@@ -16,7 +16,11 @@ from typing import Any
 
 from PySide6.QtCore import QByteArray, QSettings
 
+from ttstoolkit.core._internal.script import load_script
 from ttstoolkit.core.engine import get_spec
+from ttstoolkit.core.engine_installer import (
+    install_engine as install_environment,
+)
 from ttstoolkit.core.paths import (
     SCRIPT_DIR,
     VOICES_DIR,
@@ -231,6 +235,21 @@ class MainModel:
             str: `docs/setup/` から始まるパス。
         """
         return get_spec(engine).setup_doc_path
+
+    @staticmethod
+    def install_engine(engine: str, on_progress: ProgressFunc) -> None:
+        """Install a missing engine from the app's bundled installer files."""
+        install_environment(engine, on_progress)
+
+    @staticmethod
+    def script_engine_names(request: ScriptTabRequest) -> list[str]:
+        """Return every engine required by a script before starting work."""
+        return load_script(
+            resolve_existing(request.cast_path, SCRIPT_DIR, "Cast file not found"),
+            resolve_existing(
+                request.script_path, SCRIPT_DIR, "Script file not found"
+            ),
+        ).engines_used()
 
     # ------------------------------------------------------------------
     # 保存データ

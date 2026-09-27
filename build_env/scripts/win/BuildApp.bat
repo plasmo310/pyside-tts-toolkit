@@ -28,6 +28,13 @@ set ICON_PATH=%RESOURCES_DIR%\icon\tool_icon_rect.ico
 set IRODORI_PYTHON=%ROOT_DIR%\.venvs\engine-irodori\Scripts\python.exe
 set IRODORI_VENDOR=%ROOT_DIR%\engine_env\irodori\vendor\Irodori-TTS
 
+for /f "delims=" %%I in ('where uv 2^>nul') do if not defined UV_EXE set "UV_EXE=%%I"
+if not defined UV_EXE (
+    echo Not found uv. Install uv and run this build again.
+    pause
+    exit /b 1
+)
+
 REM Irodori is not importable from PyPI. The built GUI starts it from a
 REM separate venv and needs the checked-out upstream source at runtime.
 REM Fail before building rather than producing an app that cannot run Irodori.
@@ -61,12 +68,21 @@ pyinstaller --noconsole --onedir --name %EXE_NAME% ^
     "%BUILD_ENV_DIR%\python\run.py"
 if errorlevel 1 goto :error
 
-REM The GUI resolves engine environments relative to TTSToolkit.exe. Bundle
-REM Irodori's venv and vendor tree, which are required for Script generation.
-robocopy "%ROOT_DIR%\.venvs\engine-irodori" "%BUILD_DIST_DIR%\%EXE_NAME%\.venvs\engine-irodori" /E /COPY:DAT /DCOPY:DAT /R:1 /W:1 /NFL /NDL
+REM Include all engines and the locked sources used to restore an engine from
+REM the GUI if its environment is removed after distribution.
+for %%E in (qwen chatterbox irodori) do (
+    if not exist "%ROOT_DIR%\.venvs\engine-%%E\Scripts\python.exe" (
+        echo Not found %%E environment. Run SetupEngines.ps1 -Targets %%E first.
+        goto :error
+    )
+    robocopy "%ROOT_DIR%\.venvs\engine-%%E" "%BUILD_DIST_DIR%\%EXE_NAME%\.venvs\engine-%%E" /E /COPY:DAT /DCOPY:DAT /R:1 /W:1 /NFL /NDL
+    if errorlevel 8 goto :error
+)
+robocopy "%ROOT_DIR%\engine_env" "%BUILD_DIST_DIR%\%EXE_NAME%\engine_env" /E /COPY:DAT /DCOPY:DAT /R:1 /W:1 /NFL /NDL
 if errorlevel 8 goto :error
-robocopy "%IRODORI_VENDOR%" "%BUILD_DIST_DIR%\%EXE_NAME%\engine_env\irodori\vendor\Irodori-TTS" /E /COPY:DAT /DCOPY:DAT /R:1 /W:1 /NFL /NDL
-if errorlevel 8 goto :error
+if not exist "%BUILD_DIST_DIR%\%EXE_NAME%\tools" mkdir "%BUILD_DIST_DIR%\%EXE_NAME%\tools"
+copy /Y "%UV_EXE%" "%BUILD_DIST_DIR%\%EXE_NAME%\tools\uv.exe" >nul
+if errorlevel 1 goto :error
 
 popd
 
