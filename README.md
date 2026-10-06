@@ -1,191 +1,195 @@
+English · [日本語](README.ja.md)
+
 # TTS Toolkit
 
 <img src="docs/readme/00_tool_icon.png" width="200">
 
-**ローカルで動く 3 つの音声合成モデルを、同じ画面・同じコマンドで使えるようにしたツール** です。（Windows）
+**A tool that lets you use three locally-run text-to-speech models through the same GUI and the same commands.** (Windows)
 
-Qwen3-TTS / Chatterbox / Irodori-TTS は依存ライブラリが互いに排他的で、1 つの仮想環境には同居できません。  
-そこでモデルごとに仮想環境を分け、**GUI / CLI からは同じ呼び方で切り替えられる**ようにしています。
+The dependencies of Qwen3-TTS / Chatterbox / Irodori-TTS are mutually exclusive, so they cannot live in a single virtual environment.  
+This tool gives each model its own virtual environment, and lets you **switch between them with the same calls from the GUI / CLI**.
 
-| モデル                                                                  | 得意なこと                                       |
-| ----------------------------------------------------------------------- | ------------------------------------------------ |
-| [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) 1.7B                   | 日英とも高品質。3 秒の参照音声から声を複製できる |
-| [Chatterbox](https://github.com/resemble-ai/chatterbox) Multilingual V3 | 0.5B と軽く、23 言語に対応                       |
-| [Irodori-TTS](https://github.com/Aratako/Irodori-TTS) v4.1 Small        | 日本語専用・48kHz。文章で声を作り込める          |
+| Model                                                                   | Strengths                                                       |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) 1.7B                   | High quality in both Japanese and English. Clones a voice from a 3-second reference |
+| [Chatterbox](https://github.com/resemble-ai/chatterbox) Multilingual V3 | Lightweight at 0.5B, supports 23 languages                      |
+| [Irodori-TTS](https://github.com/Aratako/Irodori-TTS) v4.1 Small        | Japanese only, 48 kHz. Voices can be crafted from a text description |
 
-| できること                                                                   | 出力                     |
-| ---------------------------------------------------------------------------- | ------------------------ |
-| **テキストから音声を作る** — 1 件ずつ、または台本からまとめて                | `.wav`                   |
-| **参照音声から声を複製する** — 数秒〜の音声を真似る（ゼロショットクローン）  | `.wav`                   |
-| **文章で声を設計する** — 「落ち着いた低めの女性の声」から声そのものを作る    | `.wav`                   |
-| **キャラクター台本の一括合成** — 台詞ごとの wav と尺・並び順の記録を書き出す | `.wav` + `manifest.json` |
+| What you can do                                                                                   | Output                   |
+| ------------------------------------------------------------------------------------------------- | ------------------------ |
+| **Generate speech from text** — one line at a time, or in bulk from a script                      | `.wav`                   |
+| **Clone a voice from reference audio** — imitate a few seconds of audio (zero-shot cloning)       | `.wav`                   |
+| **Design a voice from a description** — create the voice itself from "a calm, low female voice"   | `.wav`                   |
+| **Batch-synthesize a character script** — writes a wav per line plus a record of durations and order | `.wav` + `manifest.json` |
 
 <img src="docs/readme/01_gui_synthesis.png" width="720">
 
----
-
-## 1. 必要環境
-
-| 項目     | 内容                                                                                     |
-| -------- | ---------------------------------------------------------------------------------------- |
-| OS       | Windows 11（セットアップと起動のスクリプトは Windows 用）                                |
-| ツール   | **mise / uv / git**                                                                      |
-| Python   | **3.12 に固定**（mise が入れます。→ [docs/setup/00_common.md](docs/setup/00_common.md)） |
-| GPU      | NVIDIA GPU（CUDA 12.8 以降を報告するドライバ）。VRAM 8GB 以上を推奨                      |
-| ディスク | 30GB 以上の空き（仮想環境 4 つとモデルの重み。ダウンロードは 10GB を超えます）           |
-
-GPU が無くても動きますが、量産に使える速度ではありません。
+> Note: the detailed documents under `docs/` are written in Japanese.
 
 ---
 
-## 2. セットアップ
+## 1. Requirements
 
-仮想環境（共通層 + エンジン 3 つ）を作って依存をインストールします。
+| Item   | Details                                                                                           |
+| ------ | ------------------------------------------------------------------------------------------------- |
+| OS     | Windows 11 (the setup and launch scripts are for Windows)                                         |
+| Tools  | **mise / uv / git**                                                                               |
+| Python | **Pinned to 3.12** (installed by mise. → [docs/setup/00_common.md](docs/setup/00_common.md))      |
+| GPU    | NVIDIA GPU (driver reporting CUDA 12.8 or later). 8 GB or more of VRAM recommended                |
+| Disk   | 30 GB or more free (four virtual environments plus model weights; downloads exceed 10 GB)        |
+
+It also runs without a GPU, but not fast enough for mass production.
+
+---
+
+## 2. Setup
+
+Create the virtual environments (common layer + three engines) and install the dependencies.
 
 ```powershell
-git clone <このリポジトリ>
+git clone <this repository>
 cd pyside-tts-toolkit
 powershell scripts\win\SetupEngines.ps1
 ```
 
-初回はダウンロードが多く、数十分かかります。  
-エンジンを絞る場合は `-Targets` を付けます（`common` / `qwen` / `chatterbox` / `irodori`）。
+The first run involves a lot of downloading and takes tens of minutes.  
+To limit which engines are set up, add `-Targets` (`common` / `qwen` / `chatterbox` / `irodori`).
 
 ```powershell
 pwsh scripts\win\SetupEngines.ps1 -Targets common,irodori
 ```
 
-終わったら、次のコマンドで確認します。3 エンジンとも `CUDA ok` と出れば準備完了です。
+When it finishes, verify with the command below. You are ready when all three engines show `CUDA ok`.
 
 ```powershell
 .\.venvs\common\Scripts\python.exe -m ttstoolkit.cli doctor
 ```
 
-mise / uv が未導入の場合や、エンジンごとの詳しい手順・トラブルシュートは
-**[docs/setup/](docs/setup/README.md)** を参照してください。
+If mise / uv are not installed, or for per-engine instructions and troubleshooting, see
+**[docs/setup/](docs/setup/README.md)**.
 
 ---
 
-## 3. 使い方
+## 3. Usage
 
-### 起動する
+### Launch
 
 ```powershell
 scripts\win\LaunchApp.bat
 ```
 
-画面は上下 2 段で、上が入力タブ、下がログです。境目はドラッグで動かせます。
+The window has two panes: input tabs on top and the log below. Drag the divider to resize.
 
-GUI だけを exe に固めて配布することもできます（下記「6. ビルドする」を参照）。
+You can also bundle just the GUI into an exe for distribution (see "6. Build" below).
 
-| タブ         | すること                                 |
-| ------------ | ---------------------------------------- |
-| Synthesis    | テキストを 1 件合成する                  |
-| Voice Design | 文章から声を作り、`input/voices/` に残す |
-| Script       | キャスト定義と台本からまとめて合成する   |
+| Tab          | What it does                                                     |
+| ------------ | ---------------------------------------------------------------- |
+| Synthesis    | Synthesize a single piece of text                                |
+| Voice Design | Create a voice from a description and save it to `input/voices/` |
+| Script       | Synthesize in bulk from a cast definition and a script           |
 
-### 参照音声を用意する
+### Preparing reference audio
 
-声を複製したいときは、参照音声を `input\voices\` に置くと、ファイル選択ダイアログが最初にそこを開きます。  
-手元に無い場合は、下の **Voice Design タブ**で文章から作れます。
+To clone a voice, put the reference audio in `input\voices\`; file dialogs open there first.  
+If you don't have any, you can create one from a description in the **Voice Design tab** below.
 
-参照音声の長さの目安は、Qwen / Chatterbox が 3 秒程度から、Irodori は 30 秒以上を推奨（上限 120 秒）です。
+Recommended reference length: about 3 seconds or more for Qwen / Chatterbox, and 30 seconds or more for Irodori (up to 120 seconds).
 
-### Synthesis タブ — テキストを 1 件合成する
+### Synthesis tab — synthesize a single piece of text
 
-**テキストを読み上げた wav を 1 本書き出す機能** です。
+**Writes one wav that reads the text aloud.**
 
-`Text` を書き、使う `Engine` を選んで `Run` を押します。
+Enter `Text`, choose an `Engine`, and press `Run`.
 
 #### Input / Output
 
-| 項目        | 既定値    | 説明                                                           |
-| ----------- | --------- | -------------------------------------------------------------- |
-| Text        | 未入力    | 読み上げるテキスト                                             |
-| Output Dir  | `output/` | 書き出し先。`...` を押すと選択できます                         |
-| Output File | 空        | 書き出すファイル名。空ならテキストから決まる名前で書き出します |
+| Item        | Default   | Description                                                                   |
+| ----------- | --------- | ----------------------------------------------------------------------------- |
+| Text        | empty     | The text to read aloud                                                        |
+| Output Dir  | `output/` | Where to write. Press `...` to choose                                         |
+| Output File | empty     | Output file name. If empty, a name derived from the text is used              |
 
 #### Engine
 
-| 項目     | 既定値 | 説明                                                                |
-| -------- | ------ | ------------------------------------------------------------------- |
-| Engine   | `qwen` | 使うエンジン。`qwen` / `chatterbox` / `irodori`                     |
-| Language | `Auto` | 言語。`Japanese (ja)` / `English (en)`。Auto ならエンジンに任せます |
+| Item     | Default | Description                                                                  |
+| -------- | ------- | ---------------------------------------------------------------------------- |
+| Engine   | `qwen`  | The engine to use: `qwen` / `chatterbox` / `irodori`                         |
+| Language | `Auto`  | Language: `Japanese (ja)` / `English (en)`. With Auto, the engine decides    |
 
-エンジンごとに対応している機能が違います。
+Supported features differ per engine.
 
-|            | 日本語 | 英語  | 声クローン | Voice Design | 話速 | シード | レート |
-| ---------- | :----: | :---: | :--------: | :----------: | :--: | :----: | -----: |
-| qwen       |   ○    |   ○   |     ○      |      ○       |  ×   |   ○    | 24 kHz |
-| chatterbox |   ○    |   ○   |     ○      |      ×       |  ×   |   ○    | 24 kHz |
-| irodori    |   ○    | **×** |     ○      |      ○       |  ○   |   ○    | 48 kHz |
+|            | Japanese | English | Voice cloning | Voice Design | Speed | Seed |   Rate |
+| ---------- | :------: | :-----: | :-----------: | :----------: | :---: | :--: | -----: |
+| qwen       |    ○     |    ○    |       ○       |      ○       |   ×   |  ○   | 24 kHz |
+| chatterbox |    ○     |    ○    |       ○       |      ×       |   ×   |  ○   | 24 kHz |
+| irodori    |    ○     |  **×**  |       ○       |      ○       |   ○   |  ○   | 48 kHz |
 
-**対応していない指定は黙って無視されず、エラーになります。** エンジンを起動する前に判定するので、待たされません。
+**Unsupported settings are not silently ignored; they raise an error.** The check happens before the engine starts, so you don't have to wait.
 
 #### Voice
 
-| 項目         | 既定値         | 説明                                                                       |
-| ------------ | -------------- | -------------------------------------------------------------------------- |
-| Voice Source | `Preset voice` | 声の決め方。下の表のとおり、選ぶと関係のない入力欄は消えます               |
-| Seed         | `random`       | `random` のままだと毎回変わります。固定すると声がぶれにくくなります        |
-| Speed        | `1.00`         | 話速（0.5〜2.0）。**Irodori のみ**。他のエンジンでは `1.00` のままにします |
+| Item         | Default        | Description                                                                                  |
+| ------------ | -------------- | -------------------------------------------------------------------------------------------- |
+| Voice Source | `Preset voice` | How the voice is chosen. As shown in the table below, irrelevant input fields are hidden     |
+| Seed         | `random`       | Left as `random`, it changes every time. Fixing it makes the voice more stable               |
+| Speed        | `1.00`         | Speaking speed (0.5–2.0). **Irodori only**. Leave at `1.00` for other engines                |
 
-| Voice Source                 | 出る入力欄                           | 説明                                                                                                       |
-| ---------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `Preset voice`               | なし                                 | エンジンの既定の声。Qwen は言語ごとのプリセット話者を使います                                              |
-| `Clone from reference audio` | `Reference Audio` / `Reference Text` | 参照音声の声を真似ます。`Reference Text`（音声の書き起こし）は **Qwen のみ**が使い、あると品質が上がります |
-| `Design from a description`  | `Voice Design`                       | 文章で声を指定します（qwen / irodori）。例: 「落ち着いた低めの女性の声。丁寧で穏やかな話し方。」           |
+| Voice Source                 | Fields shown                         | Description                                                                                                              |
+| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `Preset voice`               | none                                 | The engine's default voice. Qwen uses a preset speaker for each language                                                 |
+| `Clone from reference audio` | `Reference Audio` / `Reference Text` | Imitates the reference voice. `Reference Text` (a transcript of the audio) is used by **Qwen only**, and improves quality |
+| `Design from a description`  | `Voice Design`                       | Specify the voice in words (qwen / irodori). Example: "A calm, low female voice. Polite and gentle way of speaking."     |
 
-`output\irodori-xxxxxxxxxxxx.wav` のような wav が書き出されます。
+A wav such as `output\irodori-xxxxxxxxxxxx.wav` is written.
 
-### Voice Design タブ — 文章で声を作る
+### Voice Design tab — create a voice from a description
 
-**参照音声が無くても、声を文章で説明して作る機能** です。実在の人物に頼らずにキャラクターの声を作れます。
+**Creates a voice from a written description, without any reference audio.** You can make character voices without relying on a real person.
 
 <img src="docs/readme/02_gui_voice_design.png" width="600">
 
-| 項目         | 既定値          | 説明                                                                  |
-| ------------ | --------------- | --------------------------------------------------------------------- |
-| Engine       | `qwen`          | Voice Design に対応しているもの（qwen / irodori）だけが並びます       |
-| Language     | `Auto`          | 言語                                                                  |
-| Voice Design | 未入力          | 声と話し方の説明。例: 「20 代女性のはきはきした明るい声。少し早口。」 |
-| Sample Text  | 未入力          | 試し読みさせる文                                                      |
-| Seed         | `random`        | 固定すると同じ声を再現しやすくなります                                |
-| Output Dir   | `input/voices/` | 書き出し先。作った声をそのまま参照音声の置き場に残せます              |
-| Output File  | `master.wav`    | 書き出すファイル名                                                    |
+| Item         | Default         | Description                                                                           |
+| ------------ | --------------- | ------------------------------------------------------------------------------------- |
+| Engine       | `qwen`          | Only engines that support Voice Design (qwen / irodori) are listed                    |
+| Language     | `Auto`          | Language                                                                              |
+| Voice Design | empty           | Description of the voice and manner of speaking. Example: "A bright, brisk voice of a woman in her 20s. Slightly fast." |
+| Sample Text  | empty           | The sentence to read as a trial                                                       |
+| Seed         | `random`        | Fixing it makes the same voice easier to reproduce                                    |
+| Output Dir   | `input/voices/` | Where to write. The created voice can stay right in the reference audio folder        |
+| Output File  | `master.wav`    | Output file name                                                                      |
 
-作った声は毎回わずかに揺れます。**気に入った 1 本を残して、以後はそれを複製する**のが安定した運用です。
+A designed voice varies slightly every time. **The stable workflow is to keep one take you like and clone it from then on.**
 
-1. `Voice Design` に声と話し方を、`Sample Text` に試し読みの文を書く
-2. `Run` → `input/voices/master.wav` ができる
-3. 気に入らなければ `Seed` を変えて繰り返す
-4. 決まったら Synthesis タブで `Clone from reference audio` を選び、`master.wav` を指定する
+1. Write the voice and manner of speaking in `Voice Design`, and a trial sentence in `Sample Text`
+2. `Run` → `input/voices/master.wav` is created
+3. If you don't like it, change `Seed` and repeat
+4. Once decided, choose `Clone from reference audio` in the Synthesis tab and specify `master.wav`
 
-作り込みのコツは [docs/guide/original-voice.md](docs/guide/original-voice.md) を参照してください。
+For tips on crafting voices, see [docs/guide/original-voice.md](docs/guide/original-voice.md).
 
-### Script タブ — キャラクター台本からまとめて合成する
+### Script tab — batch-synthesize from a character script
 
-**キャラクターごとの声の定義と台本から、台詞をまとめて合成する機能** です。  
-声の定義は一度書けば使い回せるので、毎回書くのは台詞だけです。
+**Synthesizes lines in bulk from per-character voice definitions and a script.**  
+A voice definition is written once and reused, so all you write each time is the lines.
 
 <img src="docs/readme/03_gui_script.png" width="600">
 
 #### Input / Output
 
-| 項目        | 既定値    | 説明                                                                         |
-| ----------- | --------- | ---------------------------------------------------------------------------- |
-| Cast File   | 未指定    | キャラクターごとの声の定義（`cast.toml`）。`...` で `input/script/` から選択 |
-| Script File | 未指定    | 「話者: 台詞」を並べたテキスト。`...` で `input/script/` から選択            |
-| Output Dir  | `output/` | 書き出し先。台詞ごとの wav と `manifest.json` が置かれます                   |
+| Item        | Default   | Description                                                                                       |
+| ----------- | --------- | ------------------------------------------------------------------------------------------------- |
+| Cast File   | not set   | Per-character voice definitions (`cast.toml`). Choose from `input/script/` with `...`             |
+| Script File | not set   | Text listing "speaker: line". Choose from `input/script/` with `...`                              |
+| Output Dir  | `output/` | Where to write. A wav per line and `manifest.json` are placed here                                |
 
 #### Options
 
-| 項目       | 既定値 | 説明                                                                                    |
-| ---------- | ------ | --------------------------------------------------------------------------------------- |
-| Gap        | `0.30` | `manifest.json` の `start_sec` を出すときの台詞間の間（秒）。**wav に無音は足しません** |
-| On Failure | OFF    | ON にすると、1 台詞が失敗しても残りを続けます                                           |
+| Item       | Default | Description                                                                                                 |
+| ---------- | ------- | ----------------------------------------------------------------------------------------------------------- |
+| Gap        | `0.30`  | Pause between lines (seconds) used to compute `start_sec` in `manifest.json`. **No silence is added to the wav** |
+| On Failure | OFF     | When ON, continues with the remaining lines even if one fails                                               |
 
-キャスト定義（`input/script/cast.toml`）と台本（`input/script/ep01.ja.txt`）は次のように書きます。
+Write the cast definition (`input/script/cast.toml`) and the script (`input/script/ep01.ja.txt`) like this:
 
 ```toml
 [voices."霊夢"]
@@ -202,86 +206,86 @@ seed = 42
 [001-001-plasmo] ナレーター: Hello everyone!
 ```
 
-`output\ep01\001-霊夢.wav` のような台詞ごとの wav と、各台詞の尺と先頭からの秒数を記録した `manifest.json` が書き出されます。  
-行頭に `[001-001-plasmo]` のような出力名を置くと、その行は `001-001-plasmo.wav` として書き出されます。指定しない行は従来どおり連番付きです。
-話者ごとに違うエンジンを割り当てても構いません（モデルのロードはエンジンごとに 1 回だけ）。
+This writes a wav per line such as `output\ep01\001-霊夢.wav`, plus `manifest.json`, which records each line's duration and offset from the start.  
+Putting an output name such as `[001-001-plasmo]` at the start of a line writes that line as `001-001-plasmo.wav`. Lines without one are numbered sequentially as usual.  
+Different speakers may use different engines (each model is loaded only once per engine).
 
-書き方の詳細は [docs/guide/script.md](docs/guide/script.md) を参照してください。
+For details on the format, see [docs/guide/script.md](docs/guide/script.md).
 
-### 実行中の操作
+### While running
 
-- 合成は別スレッドで動くので、実行中も画面は固まりません（`Run` が無効になり、`Cancel` が有効になります）
-- `Cancel` は**次の台詞に入る前**に止まります。1 件だけの合成は最後まで走ります
-- 初回は、モデルの重みをダウンロードする確認ダイアログが出ます（数分・数 GB。1 回答えるとそのセッション中は出ません）
-- 「Engine Not Set Up」と出たら、そのエンジンの仮想環境がまだありません。`scripts\win\SetupEngines.ps1` を実行してください
-- 進捗とエラーは下のログに流れます。行頭のラベル（`[info]` / `[warn]` / `[error]`）は CLI と同じで、`File > Clear Log` で消せます
-- 成功すると出力フォルダがエクスプローラーで開きます
-- ウィンドウの位置・サイズと入力値は終了時に保存され、次回起動時に戻ります
-- `File > Clear Saved Settings...` で保存値を消去し、画面を既定値へ戻せます
-- `Help > Open Document` でプロジェクトの GitHub ページを開けます
+- Synthesis runs in a separate thread, so the window does not freeze (`Run` is disabled and `Cancel` is enabled)
+- `Cancel` stops **before the next line starts**. A single-item synthesis runs to the end
+- On first use, a dialog asks to confirm downloading the model weights (a few minutes, several GB; answering once suppresses it for the session)
+- If "Engine Not Set Up" appears, that engine's virtual environment does not exist yet. Run `scripts\win\SetupEngines.ps1`
+- Progress and errors go to the log below. The line labels (`[info]` / `[warn]` / `[error]`) are the same as in the CLI; clear with `File > Clear Log`
+- On success, the output folder opens in Explorer
+- Window position/size and input values are saved on exit and restored on the next launch
+- `File > Clear Saved Settings...` clears the saved values and resets the window to defaults
+- `Help > Open Document` opens the project's GitHub page
 
-各項目の詳細は **[docs/gui/usage.md](docs/gui/usage.md)** を参照してください。
+For details on each item, see **[docs/gui/usage.md](docs/gui/usage.md)**.
 
 ---
 
-## 4. フォルダ構成
+## 4. Folder structure
 
 ```
 .
 ├─ python/
-│   └─ ttstoolkit/       GUI・CLI・処理をまとめたパッケージ
-│       ├─ main.py           ← GUI の起点。-m ttstoolkit.main で起動する
-│       ├─ tool_config.py    タイトル・サイズ・リソースのパス
-│       ├─ definitions.py    画面に並べる選択肢（言語・声の決め方）
-│       ├─ gui/              Model / View / Controller と画面部品
-│       ├─ cli/              コマンドラインの入口（単一入口 + 各コマンド）
-│       ├─ core/             CLI / GUI 共用の処理本体（親プロセス側）
-│       └─ engine/           別の仮想環境で動く runner
-│           ├─ _shared/          両側が守る契約（protocol）と runner の土台
+│   └─ ttstoolkit/       Package containing the GUI, CLI and processing
+│       ├─ main.py           ← GUI entry point. Launched with -m ttstoolkit.main
+│       ├─ tool_config.py    Title, size, resource paths
+│       ├─ definitions.py    Choices shown in the UI (languages, voice sources)
+│       ├─ gui/              Model / View / Controller and UI parts
+│       ├─ cli/              Command-line entry (single entry + each command)
+│       ├─ core/             Processing shared by CLI / GUI (parent-process side)
+│       └─ engine/           Runners that run in separate virtual environments
+│           ├─ _shared/          Contract (protocol) both sides obey, and runner base
 │           └─ qwen/ chatterbox/ irodori/
-├─ engine_env/         各エンジンの仮想環境を作るための定義
-├─ .venvs/             仮想環境の実体（common と engine-*）
-├─ resources/          アイコンとスタイルシート（色とサイズは全部ここ）
-├─ docs/               詳細ドキュメント
-├─ input/              入力
-│   ├─ voices/           参照音声を置く（中身は .gitignore 対象）
-│   ├─ script/           キャスト定義と台本を置く
-│   └─ batch/            バッチ用の JSON を置く
-├─ output/             生成した wav（中身は .gitignore 対象）
+├─ engine_env/         Definitions for building each engine's virtual environment
+├─ .venvs/             The virtual environments themselves (common and engine-*)
+├─ resources/          Icons and stylesheet (all colors and sizes live here)
+├─ docs/               Detailed documentation
+├─ input/              Input
+│   ├─ voices/           Reference audio goes here (contents are git-ignored)
+│   ├─ script/           Cast definitions and scripts go here
+│   └─ batch/            JSON files for batch runs go here
+├─ output/             Generated wav files (contents are git-ignored)
 ├─ scripts/
 │   └─ win/SetupEngines.ps1 / LaunchApp.bat / Run{Synth,Batch,Script,Engines,Doctor}.bat
-├─ tests/              共通層のテスト（モデル不要）
-├─ mise.toml           使う Python のバージョン (3.12) と uv の設定
-└─ pyproject.toml      依存と Ruff の設定
+├─ tests/              Tests for the common layer (no models required)
+├─ mise.toml           Python version to use (3.12) and uv settings
+└─ pyproject.toml      Dependencies and Ruff settings
 ```
 
-すべての Python コードは `python/ttstoolkit/` にまとめています。  
-共通層（`core`）は画面出力もプロセス終了もしない（進捗は `logging`、失敗は例外）ので、CLI と GUI が同じ API をそのまま呼べます。  
-共通層はモデルを直接 import せず、エンジンごとの仮想環境にある runner をサブプロセスとして起動し、標準入出力の JSON でやり取りします。バッチや台本ではモデルをロードしたまま流すので、ロード時間は最初の 1 回だけです。
+All Python code lives in `python/ttstoolkit/`.  
+The common layer (`core`) neither prints to the screen nor terminates the process (progress goes through `logging`, failures through exceptions), so the CLI and GUI can call the same API as-is.  
+The common layer never imports the models directly; it launches the runner in each engine's virtual environment as a subprocess and exchanges JSON over stdin/stdout. Batches and scripts keep the model loaded, so the load time is paid only once.
 
-入出力の既定パスは**カレントディレクトリではなくリポジトリルート基準**で解決されるため、どこから実行しても結果は同じ場所（`output/`）に書き出されます。
+Default input/output paths are resolved **relative to the repository root, not the current directory**, so results are always written to the same place (`output/`) wherever you run from.
 
-なぜこの構成なのかは [docs/development/architecture.md](docs/development/architecture.md) を参照してください。
+For why it is structured this way, see [docs/development/architecture.md](docs/development/architecture.md).
 
 ---
 
-## 5. CUI で実行する
+## 5. Using the CLI
 
-GUI と同じ処理をコマンドラインからも実行できます。  
-リポジトリのルートで、共通層の Python（`.venvs\common`）を使って実行します。
+The same processing as the GUI can be run from the command line.  
+Run from the repository root, using the common layer's Python (`.venvs\common`).
 
 ```powershell
 .\.venvs\common\Scripts\python.exe -m ttstoolkit.cli synth -e irodori -t "こんにちは。"
 ```
 
-毎回書くには長いので、関数を 1 つ作っておくと楽です。以降は `tts` と書きます。
+That is long to type every time, so defining a function helps. The rest of this section writes `tts`.
 
 ```powershell
 function tts { & "$PWD\.venvs\common\Scripts\python.exe" -m ttstoolkit.cli @args }
 ```
 
-関数を定義したくない場合は、`scripts\win\` にサブコマンドごとの `.bat` があるので、
-そちらを直接呼んでも構いません（venv が無ければセットアップ手順を案内して止まります）。
+If you'd rather not define a function, there is a `.bat` per subcommand in `scripts\win\`
+that you can call directly (if the venv is missing, they print the setup instructions and stop).
 
 ```powershell
 scripts\win\RunDoctor.bat
@@ -292,66 +296,65 @@ scripts\win\RunScript.bat ep01.ja.txt -c cast.toml -o output\ep01
 ```
 
 ```powershell
-# ① 環境の確認・エンジン一覧
+# (1) Check the environment / list engines
 tts doctor
 tts engines
 
-# ② 1 件合成
+# (2) Synthesize one item
 tts synth -e qwen -t "こんにちは。" -l ja -O hello.wav
 
-# ③ 参照音声から声を複製（Qwen は --reference-text があると高品質）
+# (3) Clone a voice from reference audio (Qwen gives higher quality with --reference-text)
 tts synth -e qwen -t "おはようございます。" -l ja -r master.wav
 
-# ④ 文章で声を作る → 気に入った 1 本を残して、以後はそれを複製する
+# (4) Create a voice from a description → keep one you like and clone it from then on
 tts synth -e irodori -l ja --seed 42 `
     -t "こんにちは。この声でナレーションを読み上げます。" `
     --voice-design "20 代女性のはきはきした明るい声。少し早口。" `
     -o input\voices -O master.wav
 tts synth -e irodori -l ja -r master.wav -t "今日も一日がんばりましょう。"
 
-# ⑤ JSON をまとめて合成（GUI にはありません）
+# (5) Synthesize a JSON file in bulk (not available in the GUI)
 tts batch -e qwen sample.ja.json -o output\batch
 
-# ⑥ キャラクター台本から
+# (6) From a character script
 tts script ep01.ja.txt -c cast.toml -o output\ep01
 ```
 
-参照音声・バッチ入力・台本は、ファイル名だけ書けば `input/voices/` / `input/batch/` / `input/script/` から探します。
+For reference audio, batch input and scripts, just give the file name and it is looked up in `input/voices/` / `input/batch/` / `input/script/`.
 
-GUI が画面に出していないもの（`batch`、`-f`（テキストをファイルから読む）、`-v`（エンジン自身の出力も見る）など）は CLI 側にあります。  
-全オプションは `-h` で確認できます。
+Things the GUI does not expose (`batch`, `-f` (read text from a file), `-v` (also show the engine's own output), etc.) are available in the CLI.  
+Use `-h` to see all options.
 
-- [docs/cli/common_options.md](docs/cli/common_options.md) — 共通オプション・パスの解決・終了コード
-- [docs/cli/synth.md](docs/cli/synth.md) — ②③④ 1 件合成
-- [docs/cli/batch.md](docs/cli/batch.md) — ⑤ JSON をまとめて合成
-- [docs/cli/script.md](docs/cli/script.md) — ⑥ キャラクター台本
-- [docs/cli/engines.md](docs/cli/engines.md) / [docs/cli/doctor.md](docs/cli/doctor.md) — ① エンジン一覧・環境チェック
+- [docs/cli/common_options.md](docs/cli/common_options.md) — common options, path resolution, exit codes
+- [docs/cli/synth.md](docs/cli/synth.md) — (2)(3)(4) single synthesis
+- [docs/cli/batch.md](docs/cli/batch.md) — (5) bulk synthesis from JSON
+- [docs/cli/script.md](docs/cli/script.md) — (6) character scripts
+- [docs/cli/engines.md](docs/cli/engines.md) / [docs/cli/doctor.md](docs/cli/doctor.md) — (1) engine list / environment check
 
 ---
 
-## 6. ビルドする（配布用 exe）
+## 6. Build (distributable exe)
 
-GUI だけを PyInstaller で 1 つの exe に固めて配布できます（**CLI は含まれません**）。
-各エンジン (`.venvs/engine-*`) は依存が排他的でプロセス分離が前提のため、固めるのは
-共通層 (GUI) だけで、モデルの重い依存は同梱しません。
+You can bundle just the GUI into a single exe with PyInstaller (**the CLI is not included**).
+The engines (`.venvs/engine-*`) have mutually exclusive dependencies and rely on process isolation,
+so only the common layer (GUI) is bundled; the heavy model dependencies are not.
 
 ```powershell
-REM 1. ビルド環境を作る（初回のみ）
+REM 1. Create the build environment (first time only)
 build_env\scripts\win\Setup.bat
 
-REM 2. ビルドする
+REM 2. Build
 build_env\scripts\win\BuildApp.bat
 ```
 
-`build_env\scripts\win\dist\TTSToolkit\` に `TTSToolkit.exe` 一式が出力されます。
-配布するときは、このフォルダの中（`TTSToolkit.exe` と同じ階層）に `input/` /
-`output/` / `.venvs/` / `engine_env/` を用意してください
-（`docs/setup/` の手順、または既存環境からのコピー）。
+`TTSToolkit.exe` and its supporting files are written to `build_env\scripts\win\dist\TTSToolkit\`.
+To distribute, prepare `input/` / `output/` / `.venvs/` / `engine_env/` inside that folder
+(next to `TTSToolkit.exe`), either by following `docs/setup/` or by copying from an existing environment.
 
 ```
 TTSToolkit/
 ├─ TTSToolkit.exe
-├─ _internal/          ← ビルドで自動生成
+├─ _internal/          ← generated by the build
 ├─ input/
 ├─ output/
 ├─ .venvs/
@@ -361,36 +364,36 @@ TTSToolkit/
 └─ engine_env/
 ```
 
-仕組みの詳細（`--add-data` で何を同梱しているか、パス解決の仕組みなど）は
-[docs/development/build.md](docs/development/build.md) を参照してください。
+For details (what `--add-data` bundles, how paths are resolved, etc.), see
+[docs/development/build.md](docs/development/build.md).
 
 ---
 
-## 7. ドキュメント
+## 7. Documentation
 
-詳しい仕様・オプション・実装の話は [docs/](docs/README.md) にあります。
+Detailed specifications, options and implementation notes are in [docs/](docs/README.md).
 
-|                                                                      |                                  |
-| -------------------------------------------------------------------- | -------------------------------- |
-| [docs/setup/](docs/setup/README.md)                                  | 導入手順（**最初に読む**）       |
-| [docs/gui/usage.md](docs/gui/usage.md)                               | GUI の全オプション               |
-| [docs/cli/](docs/cli/common_options.md)                              | CLI のコマンドごとの使い方       |
-| [docs/guide/script.md](docs/guide/script.md)                         | キャラクター台本の書き方         |
-| [docs/guide/original-voice.md](docs/guide/original-voice.md)         | オリジナルの声を設計して固定する |
-| [docs/development/architecture.md](docs/development/architecture.md) | 全体構成と設計の根拠             |
-| [docs/development/build.md](docs/development/build.md)               | PyInstaller で GUI を exe にする |
-| [docs/instructions/code_guide.md](docs/instructions/code_guide.md)   | コーディングルール               |
+|                                                                      |                                              |
+| -------------------------------------------------------------------- | -------------------------------------------- |
+| [docs/setup/](docs/setup/README.md)                                  | Installation steps (**read this first**)     |
+| [docs/gui/usage.md](docs/gui/usage.md)                               | All GUI options                              |
+| [docs/cli/](docs/cli/common_options.md)                              | Usage for each CLI command                   |
+| [docs/guide/script.md](docs/guide/script.md)                         | How to write character scripts               |
+| [docs/guide/original-voice.md](docs/guide/original-voice.md)         | Designing and fixing an original voice       |
+| [docs/development/architecture.md](docs/development/architecture.md) | Overall structure and design rationale       |
+| [docs/development/build.md](docs/development/build.md)               | Bundling the GUI into an exe with PyInstaller |
+| [docs/instructions/code_guide.md](docs/instructions/code_guide.md)   | Coding rules                                 |
 
 ---
 
-## 8. ライセンス
+## 8. License
 
-3 モデルともローカル生成は無料・無制限で、商用利用も可能です。
+Local generation is free and unlimited with all three models, and commercial use is allowed.
 
-| モデル      | コード     | 重み                                     |
-| ----------- | ---------- | ---------------------------------------- |
-| Qwen3-TTS   | Apache-2.0 | Apache-2.0                               |
-| Chatterbox  | MIT        | MIT（生成音声に PerTh 電子透かしが入る） |
-| Irodori-TTS | MIT        | MIT                                      |
+| Model       | Code       | Weights                                                |
+| ----------- | ---------- | ------------------------------------------------------ |
+| Qwen3-TTS   | Apache-2.0 | Apache-2.0                                             |
+| Chatterbox  | MIT        | MIT (generated audio carries a PerTh watermark)        |
+| Irodori-TTS | MIT        | MIT                                                    |
 
-ただし**参照音声（声素材）の権利は別**です。実在の人物の声を複製する場合は、本人の同意と利用範囲の確認が必要になります。
+However, **rights to reference audio (voice material) are separate.** Cloning a real person's voice requires their consent and confirmation of the permitted scope of use.
